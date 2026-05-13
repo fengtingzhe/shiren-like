@@ -26,6 +26,10 @@
             <span>药</span>
             <strong id="potion-value">0</strong>
           </div>
+          <div class="pill food-pill" aria-label="satiety">
+            <span>满腹</span>
+            <strong id="satiety-value">75 / 100</strong>
+          </div>
           <button id="pause-button" class="icon-button" type="button" aria-label="pause">
             <span class="pause-icon"></span>
           </button>
@@ -40,7 +44,12 @@
         <div id="event-log" class="event-log" aria-live="polite"></div>
 
         <div class="quick-actions" aria-label="quick actions">
-          <button id="potion-button" class="action-button" type="button">H 回复药</button>
+          <button id="potion-button" class="action-button" type="button" title="H：恢复 HP">H 回复药 0</button>
+          <button id="food-button" class="action-button secondary" type="button" title="F：恢复满腹度，占位 v0.3 饥饿系统">F 食物 0</button>
+          <button id="teleport-button" class="action-button secondary" type="button" title="T：随机传送到安全地板">T 传送 0</button>
+          <button id="sleep-button" class="action-button secondary" type="button" title="Z：让附近怪物睡眠 3 回合">Z 睡眠 0</button>
+          <button id="fireball-button" class="action-button secondary" type="button" title="R：朝当前方向发射火球">R 火球 0</button>
+          <button id="swap-button" class="action-button secondary" type="button" title="X：与当前方向第一个怪物换位">X 换位 0</button>
           <button id="wait-button" class="action-button secondary" type="button">. 等待</button>
           <button id="stairs-button" class="action-button secondary" type="button">E 下楼</button>
         </div>
@@ -80,12 +89,12 @@
       <section id="start-overlay" class="overlay">
         <div class="modal">
           <h1>shiren-like</h1>
-          <p>在三层迷宫中活下来。移动一格就是一回合，怪物会追击，回复药和楼梯是最重要的资源。</p>
+          <p>在三层迷宫中活下来。移动一格就是一回合，怪物会追击，回复药、卷轴、杖和楼梯都是解局资源。</p>
           <button id="start-button" class="primary-button" type="button">
             <span class="play-icon"></span>
             开始 Demo
           </button>
-          <p class="control-note">WASD / 方向键移动，H 使用回复药，空格或句号等待，站在楼梯上按 E / Enter 下楼。</p>
+          <p class="control-note">WASD / 方向键移动，H 药，F 食物，T 传送，Z 睡眠，R 火球，X 换位，空格等待，E 下楼。</p>
         </div>
       </section>
 
@@ -103,8 +112,8 @@
               <dd id="result-kills">0</dd>
             </div>
             <div>
-              <dt>使用回复药</dt>
-              <dd id="result-potions">0</dd>
+              <dt>使用道具</dt>
+              <dd id="result-items">0</dd>
             </div>
           </dl>
           <button id="restart-button" class="primary-button" type="button">

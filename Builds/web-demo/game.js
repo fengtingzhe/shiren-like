@@ -1,7 +1,7 @@
 (() => {
   const CONFIG_URL = "../../Data/config/web_demo_balance.json";
   const DEFAULT_CONFIG = {
-    version: "v0.1",
+    version: "v0.2",
     dungeon: {
       maxFloors: 3,
       width: 15,
@@ -11,15 +11,15 @@
           name: "石苔入口",
           rows: [
             "###############",
-            "#@.p..#...p...#",
+            "#@fp..#...p...#",
             "#.###.#.#####.#",
-            "#...#...#...#.#",
+            "#...#..t#...#.#",
             "###.#####.#.#.#",
-            "#...m.....#...#",
+            "#.z.m..r..#...#",
             "#.#####.###.###",
             "#.....#...#...#",
             "#.###.###.#.#.#",
-            "#...#..p..#m#s#",
+            "#...#..p.x#m#s#",
             "#.............#",
             "###############"
           ]
@@ -28,15 +28,15 @@
           name: "回廊浅层",
           rows: [
             "###############",
-            "#@p.#.....#...#",
+            "#@f.#..t..#...#",
             "###.#.###.#.#.#",
-            "#...#.#p#...#.#",
+            "#...#.#z#...#.#",
             "#.###.#.#####.#",
-            "#.....#...m...#",
+            "#..m..#...m...#",
             "#.#######.###.#",
             "#.#.....#...#.#",
             "#.#.###.###.#.#",
-            "#...m.#..p..#s#",
+            "#.r.m.#..p.x#s#",
             "#.....#.....#.#",
             "###############"
           ]
@@ -45,15 +45,15 @@
           name: "试炼终点",
           rows: [
             "###############",
-            "#@.p..#.......#",
+            "#@f.t.#.......#",
             "#.###.#.#####.#",
-            "#...#.#...p.#.#",
+            "#...#.#..zp.#.#",
             "###.#.###.#.#.#",
             "#...#...#.#...#",
             "#.#####.#.###.#",
-            "#...m...#...#.#",
+            "#.r.m...#...#.#",
             "#.#########.#.#",
-            "#...p....m..#s#",
+            "#...p..x.m..#s#",
             "#.............#",
             "###############"
           ]
@@ -62,7 +62,9 @@
     },
     player: {
       maxHp: 20,
-      attack: 4
+      attack: 4,
+      maxSatiety: 100,
+      startingSatiety: 75
     },
     monster: {
       name: "Slime",
@@ -72,6 +74,37 @@
     potion: {
       name: "回复药",
       heal: 8
+    },
+    items: {
+      potion: {
+        name: "回复药",
+        key: "H",
+        heal: 8
+      },
+      food: {
+        name: "食物",
+        key: "F",
+        satiety: 35
+      },
+      teleport: {
+        name: "传送卷轴",
+        key: "T"
+      },
+      sleep: {
+        name: "睡眠卷轴",
+        key: "Z",
+        range: 4,
+        turns: 3
+      },
+      fireball: {
+        name: "火球杖",
+        key: "R",
+        damage: 5
+      },
+      swap: {
+        name: "换位杖",
+        key: "X"
+      }
     },
     log: {
       maxEntries: 6
@@ -85,10 +118,16 @@
     floor: document.getElementById("floor-value"),
     turn: document.getElementById("turn-value"),
     potion: document.getElementById("potion-value"),
+    satiety: document.getElementById("satiety-value"),
     objective: document.getElementById("objective"),
     prompt: document.getElementById("prompt"),
     log: document.getElementById("event-log"),
     potionButton: document.getElementById("potion-button"),
+    foodButton: document.getElementById("food-button"),
+    teleportButton: document.getElementById("teleport-button"),
+    sleepButton: document.getElementById("sleep-button"),
+    fireballButton: document.getElementById("fireball-button"),
+    swapButton: document.getElementById("swap-button"),
     waitButton: document.getElementById("wait-button"),
     stairsButton: document.getElementById("stairs-button"),
     startOverlay: document.getElementById("start-overlay"),
@@ -98,7 +137,7 @@
     resultCopy: document.getElementById("result-copy"),
     resultFloor: document.getElementById("result-floor"),
     resultKills: document.getElementById("result-kills"),
-    resultPotions: document.getElementById("result-potions"),
+    resultItems: document.getElementById("result-items"),
     restart: document.getElementById("restart-button"),
     pause: document.getElementById("pause-button"),
     consoleButton: document.getElementById("console-button"),
@@ -118,6 +157,26 @@
     left: { x: -1, y: 0 },
     right: { x: 1, y: 0 }
   };
+
+  const ITEM_MARKS = {
+    p: "potion",
+    f: "food",
+    t: "teleport",
+    z: "sleep",
+    r: "fireball",
+    x: "swap"
+  };
+
+  const ITEM_META = {
+    potion: { label: "回复药", icon: "+", color: "#6fc38b", button: "potionButton" },
+    food: { label: "食物", icon: "F", color: "#f2c85b", button: "foodButton" },
+    teleport: { label: "传送卷轴", icon: "T", color: "#7fb7d7", button: "teleportButton" },
+    sleep: { label: "睡眠卷轴", icon: "Z", color: "#a88ee8", button: "sleepButton" },
+    fireball: { label: "火球杖", icon: "R", color: "#df6657", button: "fireballButton" },
+    swap: { label: "换位杖", icon: "X", color: "#f08a54", button: "swapButton" }
+  };
+
+  const ITEM_ORDER = ["potion", "food", "teleport", "sleep", "fireball", "swap"];
 
   let config = DEFAULT_CONFIG;
   let state = null;
@@ -168,7 +227,7 @@
       height: 0,
       tiles: [],
       monsters: [],
-      potionsOnGround: [],
+      itemsOnGround: [],
       stairs: { x: 1, y: 1 },
       player: {
         x: 1,
@@ -176,13 +235,15 @@
         hp: config.player.maxHp,
         maxHp: config.player.maxHp,
         attack: config.player.attack,
+        satiety: config.player.startingSatiety,
+        maxSatiety: config.player.maxSatiety,
         facing: "down",
         hitFlash: 0
       },
-      potionCount: 0,
+      inventory: createEmptyInventory(),
       turn: 0,
       kills: 0,
-      potionsUsed: 0,
+      itemsUsed: 0,
       messages: [],
       floaters: [],
       deathReason: ""
@@ -193,6 +254,13 @@
     return nextState;
   }
 
+  function createEmptyInventory() {
+    return ITEM_ORDER.reduce((inventory, type) => {
+      inventory[type] = 0;
+      return inventory;
+    }, {});
+  }
+
   function loadFloor(floorIndex) {
     const floors = config.dungeon.floors && config.dungeon.floors.length ? config.dungeon.floors : DEFAULT_CONFIG.dungeon.floors;
     const floorData = floors[Math.min(floorIndex, floors.length - 1)];
@@ -201,7 +269,7 @@
     const width = rows[0].length;
     const tiles = [];
     const monsters = [];
-    const potionsOnGround = [];
+    const itemsOnGround = [];
     let playerStart = null;
     let stairs = null;
 
@@ -218,8 +286,13 @@
         if (mark === "m") {
           monsters.push(createMonster(x, y, monsters.length));
         }
-        if (mark === "p") {
-          potionsOnGround.push({ id: `potion_${floorIndex}_${potionsOnGround.length}`, x, y });
+        if (ITEM_MARKS[mark]) {
+          itemsOnGround.push({
+            id: `item_${floorIndex}_${itemsOnGround.length}`,
+            type: ITEM_MARKS[mark],
+            x,
+            y
+          });
         }
       }
     }
@@ -231,7 +304,7 @@
     state.height = height;
     state.tiles = tiles;
     state.monsters = monsters;
-    state.potionsOnGround = potionsOnGround;
+    state.itemsOnGround = itemsOnGround;
     state.stairs = stairs || { x: width - 2, y: height - 2 };
     state.player.x = playerStart ? playerStart.x : 1;
     state.player.y = playerStart ? playerStart.y : 1;
@@ -248,6 +321,7 @@
       hp: config.monster.hp,
       maxHp: config.monster.hp,
       attack: config.monster.attack,
+      sleepTurns: 0,
       hitFlash: 0
     };
   }
@@ -267,8 +341,8 @@
     return state.monsters.find((monster) => monster.x === x && monster.y === y);
   }
 
-  function potionAt(x, y) {
-    return state.potionsOnGround.find((potion) => potion.x === x && potion.y === y);
+  function itemAt(x, y) {
+    return state.itemsOnGround.find((item) => item.x === x && item.y === y);
   }
 
   function isOnStairs() {
@@ -323,7 +397,7 @@
 
     state.player.x = targetX;
     state.player.y = targetY;
-    pickupPotion();
+    pickupItem();
     advanceTurn();
   }
 
@@ -352,22 +426,39 @@
     }
   }
 
-  function pickupPotion() {
-    const potion = potionAt(state.player.x, state.player.y);
-    if (!potion) {
+  function getItemConfig(type) {
+    return (config.items && config.items[type]) || DEFAULT_CONFIG.items[type];
+  }
+
+  function itemLabel(type) {
+    return getItemConfig(type).name || ITEM_META[type].label;
+  }
+
+  function pickupItem() {
+    const item = itemAt(state.player.x, state.player.y);
+    if (!item) {
       return;
     }
-    state.potionsOnGround = state.potionsOnGround.filter((item) => item !== potion);
-    state.potionCount += 1;
-    addFloater(state.player.x, state.player.y, "+药", "#f2c85b");
-    addMessage(`捡到 ${config.potion.name}。`);
+    state.itemsOnGround = state.itemsOnGround.filter((groundItem) => groundItem !== item);
+    state.inventory[item.type] += 1;
+    addFloater(state.player.x, state.player.y, `+${ITEM_META[item.type].icon}`, ITEM_META[item.type].color);
+    addMessage(`捡到 ${itemLabel(item.type)}。`);
+  }
+
+  function hasItem(type) {
+    return state.inventory[type] > 0;
+  }
+
+  function consumeItem(type) {
+    state.inventory[type] -= 1;
+    state.itemsUsed += 1;
   }
 
   function usePotion() {
     if (!canAct()) {
       return;
     }
-    if (state.potionCount <= 0) {
+    if (!hasItem("potion")) {
       addMessage("没有回复药。");
       updateUi();
       return;
@@ -377,13 +468,179 @@
       updateUi();
       return;
     }
+    const item = getItemConfig("potion");
     const before = state.player.hp;
-    state.player.hp = Math.min(state.player.maxHp, state.player.hp + config.potion.heal);
-    state.potionCount -= 1;
-    state.potionsUsed += 1;
+    state.player.hp = Math.min(state.player.maxHp, state.player.hp + item.heal);
+    consumeItem("potion");
     addFloater(state.player.x, state.player.y, `+${state.player.hp - before}`, "#6fc38b");
-    addMessage(`使用 ${config.potion.name}，恢复 ${state.player.hp - before} HP。`);
+    addMessage(`使用 ${item.name}，恢复 ${state.player.hp - before} HP。`);
     advanceTurn();
+  }
+
+  function useFood() {
+    if (!canAct()) {
+      return;
+    }
+    if (!hasItem("food")) {
+      addMessage("没有食物。");
+      updateUi();
+      return;
+    }
+    if (state.player.satiety >= state.player.maxSatiety) {
+      addMessage("满腹度已满，食物先留着。");
+      updateUi();
+      return;
+    }
+    const item = getItemConfig("food");
+    const before = state.player.satiety;
+    state.player.satiety = Math.min(state.player.maxSatiety, state.player.satiety + item.satiety);
+    consumeItem("food");
+    addFloater(state.player.x, state.player.y, `+${state.player.satiety - before}`, "#f2c85b");
+    addMessage(`吃下食物，满腹度恢复 ${state.player.satiety - before}。v0.2 不会因饥饿死亡。`);
+    advanceTurn();
+  }
+
+  function useTeleport() {
+    if (!canAct()) {
+      return;
+    }
+    if (!hasItem("teleport")) {
+      addMessage("没有传送卷轴。");
+      updateUi();
+      return;
+    }
+    const destination = findTeleportDestination();
+    if (!destination) {
+      addMessage("没有可传送的安全地板。");
+      updateUi();
+      return;
+    }
+    consumeItem("teleport");
+    state.player.x = destination.x;
+    state.player.y = destination.y;
+    pickupItem();
+    addFloater(state.player.x, state.player.y, "传送", "#7fb7d7");
+    addMessage("使用传送卷轴，脱离危险。");
+    advanceTurn();
+  }
+
+  function findTeleportDestination() {
+    const candidates = [];
+    for (let y = 0; y < state.height; y += 1) {
+      for (let x = 0; x < state.width; x += 1) {
+        if (!isWalkable(x, y)) {
+          continue;
+        }
+        if (state.player.x === x && state.player.y === y) {
+          continue;
+        }
+        if (monsterAt(x, y)) {
+          continue;
+        }
+        candidates.push({ x, y });
+      }
+    }
+    if (candidates.length === 0) {
+      return null;
+    }
+    return candidates[Math.floor(Math.random() * candidates.length)];
+  }
+
+  function useSleepScroll() {
+    if (!canAct()) {
+      return;
+    }
+    if (!hasItem("sleep")) {
+      addMessage("没有睡眠卷轴。");
+      updateUi();
+      return;
+    }
+    const item = getItemConfig("sleep");
+    const targets = state.monsters.filter((monster) => manhattan(monster.x, monster.y, state.player.x, state.player.y) <= item.range);
+    if (targets.length === 0) {
+      addMessage("附近没有可催眠的怪物。");
+      updateUi();
+      return;
+    }
+    consumeItem("sleep");
+    targets.forEach((monster) => {
+      monster.sleepTurns = Math.max(monster.sleepTurns, item.turns);
+    });
+    addFloater(state.player.x, state.player.y, "Zzz", "#a88ee8");
+    addMessage(`使用睡眠卷轴，${targets.length} 只怪物睡着了。`);
+    advanceTurn();
+  }
+
+  function useFireball() {
+    if (!canAct()) {
+      return;
+    }
+    if (!hasItem("fireball")) {
+      addMessage("没有火球杖。");
+      updateUi();
+      return;
+    }
+    const target = findLineTarget();
+    if (!target) {
+      addMessage("火球杖前方没有目标，不消耗道具。");
+      updateUi();
+      return;
+    }
+    const item = getItemConfig("fireball");
+    consumeItem("fireball");
+    target.hp -= item.damage;
+    target.hitFlash = 0.25;
+    addFloater(target.x, target.y, `-${item.damage}`, "#df6657");
+    addMessage(`火球命中 ${target.name}，造成 ${item.damage} 点伤害。`);
+    if (target.hp <= 0) {
+      state.monsters = state.monsters.filter((monster) => monster !== target);
+      state.kills += 1;
+      addMessage(`${target.name} 被火球击败。`);
+    }
+    advanceTurn();
+  }
+
+  function useSwapStaff() {
+    if (!canAct()) {
+      return;
+    }
+    if (!hasItem("swap")) {
+      addMessage("没有换位杖。");
+      updateUi();
+      return;
+    }
+    const target = findLineTarget();
+    if (!target) {
+      addMessage("换位杖前方没有目标，不消耗道具。");
+      updateUi();
+      return;
+    }
+    consumeItem("swap");
+    const playerX = state.player.x;
+    const playerY = state.player.y;
+    state.player.x = target.x;
+    state.player.y = target.y;
+    target.x = playerX;
+    target.y = playerY;
+    pickupItem();
+    addFloater(state.player.x, state.player.y, "换位", "#f08a54");
+    addMessage(`使用换位杖，与 ${target.name} 交换位置。`);
+    advanceTurn();
+  }
+
+  function findLineTarget() {
+    const dir = DIRS[state.player.facing] || DIRS.down;
+    let x = state.player.x + dir.x;
+    let y = state.player.y + dir.y;
+    while (isWalkable(x, y)) {
+      const target = monsterAt(x, y);
+      if (target) {
+        return target;
+      }
+      x += dir.x;
+      y += dir.y;
+    }
+    return null;
   }
 
   function waitTurn() {
@@ -429,6 +686,10 @@
     const actingMonsters = [...state.monsters];
     for (const monster of actingMonsters) {
       if (state.gameOver || !state.monsters.includes(monster)) {
+        continue;
+      }
+      if (monster.sleepTurns > 0) {
+        monster.sleepTurns -= 1;
         continue;
       }
       if (manhattan(monster.x, monster.y, state.player.x, state.player.y) === 1) {
@@ -527,7 +788,7 @@
     ui.resultCopy.textContent = copy;
     ui.resultFloor.textContent = `${state.floor}F`;
     ui.resultKills.textContent = String(state.kills);
-    ui.resultPotions.textContent = String(state.potionsUsed);
+    ui.resultItems.textContent = String(state.itemsUsed);
     ui.resultOverlay.classList.remove("is-hidden");
     updateUi();
   }
@@ -545,7 +806,7 @@
     if (state.monsters.some((monster) => manhattan(monster.x, monster.y, state.player.x, state.player.y) === 1)) {
       return "目标：怪物贴身了。移动方向可以攻击，也可以用药或走位。";
     }
-    return "目标：探索迷宫，找楼梯，必要时用回复药保命。";
+    return "目标：探索迷宫，找楼梯，用卷轴和杖解决危险局面。";
   }
 
   function updateUi() {
@@ -556,7 +817,8 @@
     ui.hp.style.color = state.player.hp <= 5 ? "#df6657" : "#6fc38b";
     ui.floor.textContent = `${state.floor}F`;
     ui.turn.textContent = `Turn ${state.turn}`;
-    ui.potion.textContent = String(state.potionCount);
+    ui.potion.textContent = String(state.inventory.potion);
+    ui.satiety.textContent = `${state.player.satiety} / ${state.player.maxSatiety}`;
     ui.objective.textContent = getObjective();
     ui.log.innerHTML = state.messages.map((message) => `<div>${escapeHtml(message)}</div>`).join("");
 
@@ -567,10 +829,51 @@
       ui.prompt.classList.add("is-hidden");
     }
 
-    ui.potionButton.disabled = !state.running || state.paused || state.gameOver || state.potionCount <= 0 || state.player.hp >= state.player.maxHp;
+    updateItemButtons();
     ui.waitButton.disabled = !state.running || state.paused || state.gameOver;
     ui.stairsButton.disabled = !state.running || state.paused || state.gameOver || !isOnStairs();
     ui.pause.setAttribute("aria-label", state.paused ? "resume" : "pause");
+  }
+
+  function updateItemButtons() {
+    ITEM_ORDER.forEach((type) => {
+      const meta = ITEM_META[type];
+      const button = ui[meta.button];
+      const item = getItemConfig(type);
+      const count = state.inventory[type];
+      button.textContent = `${item.key} ${meta.label} ${count}`;
+      button.disabled = !state.running || state.paused || state.gameOver || count <= 0 || itemBlocked(type);
+      button.title = getItemTitle(type);
+    });
+  }
+
+  function itemBlocked(type) {
+    if (type === "potion") {
+      return state.player.hp >= state.player.maxHp;
+    }
+    if (type === "food") {
+      return state.player.satiety >= state.player.maxSatiety;
+    }
+    return false;
+  }
+
+  function getItemTitle(type) {
+    switch (type) {
+      case "potion":
+        return "H：恢复 HP，成功使用后推进回合";
+      case "food":
+        return "F：恢复满腹度；v0.2 不会因饥饿死亡";
+      case "teleport":
+        return "T：随机传送到当前层安全地板";
+      case "sleep":
+        return "Z：让 4 格内怪物睡眠 3 回合";
+      case "fireball":
+        return "R：朝当前方向发射火球，未命中不消耗";
+      case "swap":
+        return "X：与当前方向第一个怪物换位，未命中不消耗";
+      default:
+        return "";
+    }
   }
 
   function escapeHtml(value) {
@@ -656,7 +959,7 @@
   function drawMap() {
     drawTiles();
     drawStairs();
-    drawPotions();
+    drawItems();
     drawMonsters();
     drawPlayer();
   }
@@ -711,23 +1014,29 @@
     }
   }
 
-  function drawPotions() {
-    state.potionsOnGround.forEach((potion) => {
-      const p = tileToScreen(potion.x, potion.y);
+  function drawItems() {
+    state.itemsOnGround.forEach((item) => {
+      const meta = ITEM_META[item.type];
+      const p = tileToScreen(item.x, item.y);
       const size = view.tile;
       const cx = p.x + size / 2;
       const cy = p.y + size / 2;
-      ctx.fillStyle = "rgba(111, 195, 139, 0.18)";
+      ctx.fillStyle = `${meta.color}2e`;
       ctx.beginPath();
       ctx.arc(cx, cy, size * 0.28, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = "#6fc38b";
-      ctx.fillRect(cx - size * 0.12, cy - size * 0.08, size * 0.24, size * 0.24);
-      ctx.fillStyle = "#c9f2d4";
-      ctx.fillRect(cx - size * 0.08, cy - size * 0.2, size * 0.16, size * 0.12);
-      ctx.strokeStyle = "#10231a";
+      ctx.fillStyle = meta.color;
+      ctx.beginPath();
+      ctx.roundRect(cx - size * 0.18, cy - size * 0.18, size * 0.36, size * 0.36, 5);
+      ctx.fill();
+      ctx.fillStyle = "#11171b";
+      ctx.font = `700 ${Math.max(13, size * 0.3)}px sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(meta.icon, cx, cy + 1);
+      ctx.strokeStyle = "rgba(247, 241, 227, 0.78)";
       ctx.lineWidth = 2;
-      ctx.strokeRect(cx - size * 0.12, cy - size * 0.08, size * 0.24, size * 0.24);
+      ctx.strokeRect(cx - size * 0.18, cy - size * 0.18, size * 0.36, size * 0.36);
     });
   }
 
@@ -741,7 +1050,7 @@
       ctx.beginPath();
       ctx.ellipse(cx, cy + size * 0.18, size * 0.26, size * 0.11, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = monster.hitFlash > 0 ? "#ffffff" : "#9b5ad7";
+      ctx.fillStyle = monster.hitFlash > 0 ? "#ffffff" : monster.sleepTurns > 0 ? "#5d5372" : "#9b5ad7";
       ctx.beginPath();
       ctx.ellipse(cx, cy + size * 0.03, size * 0.28, size * 0.24, 0, 0, Math.PI * 2);
       ctx.fill();
@@ -750,6 +1059,12 @@
       ctx.arc(cx - size * 0.09, cy - size * 0.02, size * 0.035, 0, Math.PI * 2);
       ctx.arc(cx + size * 0.09, cy - size * 0.02, size * 0.035, 0, Math.PI * 2);
       ctx.fill();
+      if (monster.sleepTurns > 0) {
+        ctx.fillStyle = "#d8c7ff";
+        ctx.font = `700 ${Math.max(13, size * 0.32)}px sans-serif`;
+        ctx.textAlign = "center";
+        ctx.fillText("Z", cx, cy - size * 0.34);
+      }
       drawBar(cx, p.y + size * 0.08, size * 0.58, monster.hp, monster.maxHp, "#df6657");
     });
   }
@@ -890,6 +1205,11 @@
       });
     });
     ui.potionButton.addEventListener("click", usePotion);
+    ui.foodButton.addEventListener("click", useFood);
+    ui.teleportButton.addEventListener("click", useTeleport);
+    ui.sleepButton.addEventListener("click", useSleepScroll);
+    ui.fireballButton.addEventListener("click", useFireball);
+    ui.swapButton.addEventListener("click", useSwapStaff);
     ui.waitButton.addEventListener("click", waitTurn);
     ui.stairsButton.addEventListener("click", descendStairs);
     ui.start.addEventListener("click", startGame);
@@ -938,6 +1258,26 @@
     }
     if (code === "KeyH") {
       usePotion();
+      return true;
+    }
+    if (code === "KeyF") {
+      useFood();
+      return true;
+    }
+    if (code === "KeyT") {
+      useTeleport();
+      return true;
+    }
+    if (code === "KeyZ") {
+      useSleepScroll();
+      return true;
+    }
+    if (code === "KeyR") {
+      useFireball();
+      return true;
+    }
+    if (code === "KeyX") {
+      useSwapStaff();
       return true;
     }
     if (code === "Space" || code === "Period") {
