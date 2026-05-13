@@ -1,29 +1,29 @@
 {
-  "version": "v0.4.1",
+  "version": "v0.4.2",
   "dungeon": {
     "maxFloors": 3,
-    "width": 15,
-    "height": 12,
+    "width": 36,
+    "height": 28,
     "generation": {
       "enabled": true,
-      "roomCount": [4, 6],
-      "roomWidth": [3, 6],
-      "roomHeight": [3, 4],
+      "roomCount": [5, 8],
+      "roomWidth": [3, 10],
+      "roomHeight": [3, 10],
       "floorRules": [
         {
-          "monsters": [2, 3],
+          "monsters": [5, 7],
           "potion": [1, 1],
           "food": [1, 1],
           "strategyItems": [1, 2]
         },
         {
-          "monsters": [3, 4],
+          "monsters": [6, 8],
           "potion": [1, 1],
           "food": [1, 1],
           "strategyItems": [2, 2]
         },
         {
-          "monsters": [4, 5],
+          "monsters": [7, 9],
           "potion": [1, 1],
           "food": [1, 2],
           "strategyItems": [2, 3]

@@ -1,16 +1,16 @@
 (() => {
   const CONFIG_URL = "../../Data/config/web_demo_balance.json";
   const DEFAULT_CONFIG = {
-    version: "v0.4.1",
+    version: "v0.4.2",
     dungeon: {
       maxFloors: 3,
-      width: 15,
-      height: 12,
+      width: 36,
+      height: 28,
       generation: {
         enabled: true,
-        roomCount: [4, 6],
-        roomWidth: [3, 6],
-        roomHeight: [3, 4],
+        roomCount: [5, 8],
+        roomWidth: [3, 10],
+        roomHeight: [3, 10],
         floorRules: [
           { monsters: [2, 3], potion: [1, 1], food: [1, 1], strategyItems: [1, 2] },
           { monsters: [3, 4], potion: [1, 1], food: [1, 1], strategyItems: [2, 2] },
@@ -223,6 +223,10 @@
     rowStep: 43,
     yScale: 0.72,
     perspectiveOffset: 2,
+    playLeft: 0,
+    playTop: 0,
+    playWidth: 0,
+    playHeight: 0,
     originX: 0,
     originY: 0
   };
@@ -260,6 +264,7 @@
       floorName: "",
       width: 0,
       height: 0,
+      rooms: [],
       tiles: [],
       monsters: [],
       itemsOnGround: [],
@@ -353,6 +358,7 @@
       name: floorData.name || `第 ${floorIndex + 1} 层`,
       width,
       height,
+      rooms: [],
       tiles,
       monsters,
       itemsOnGround,
@@ -367,6 +373,7 @@
     state.floorName = floorData.name || `第 ${state.floor} 层`;
     state.width = floorData.width;
     state.height = floorData.height;
+    state.rooms = floorData.rooms || [];
     state.tiles = floorData.tiles;
     state.monsters = floorData.monsters;
     state.itemsOnGround = floorData.itemsOnGround;
@@ -391,15 +398,19 @@
     rooms.forEach((room) => carveRoom(tiles, width, room));
     connectRooms(tiles, width, rooms);
 
-    const playerStart = roomCenter(rooms[0]);
+    const playerStart = { x: rooms[0].centerX, y: rooms[0].centerY };
     const stairsRoom = findFarthestRoom(rooms, playerStart);
-    const stairs = roomCenter(stairsRoom);
+    const stairs = { x: stairsRoom.centerX, y: stairsRoom.centerY };
+    rooms.forEach((room, index) => {
+      room.isStartRoom = index === 0;
+      room.isStairsRoom = room.id === stairsRoom.id;
+    });
     const occupied = new Set([keyOf(playerStart.x, playerStart.y), keyOf(stairs.x, stairs.y)]);
     const rules = getFloorRules(floorIndex);
     const monsters = [];
     const itemsOnGround = [];
 
-    placeMonsters(monsters, occupied, tiles, width, height, randomFromRange(rules.monsters), floorIndex, playerStart);
+    placeMonstersByRoom(monsters, rooms, occupied, tiles, width, height, floorIndex, stairs);
     placeItems(itemsOnGround, occupied, tiles, width, height, "potion", randomFromRange(rules.potion), floorIndex);
     placeItems(itemsOnGround, occupied, tiles, width, height, "food", randomFromRange(rules.food), floorIndex);
     placeStrategyItems(itemsOnGround, occupied, tiles, width, height, randomFromRange(rules.strategyItems), floorIndex);
@@ -408,6 +419,7 @@
       name: `随机迷宫 ${floorIndex + 1}F`,
       width,
       height,
+      rooms,
       tiles,
       monsters,
       itemsOnGround,
@@ -426,7 +438,7 @@
       const roomHeight = randomFromRange(generation.roomHeight);
       const x = randomInt(1, width - roomWidth - 1);
       const y = randomInt(1, height - roomHeight - 1);
-      const room = { x, y, width: roomWidth, height: roomHeight };
+      const room = createRoomMeta(rooms.length, x, y, roomWidth, roomHeight);
       if (rooms.every((other) => !roomsOverlap(room, other))) {
         rooms.push(room);
       }
@@ -439,27 +451,28 @@
 
   function roomsOverlap(a, b) {
     return !(
-      a.x + a.width < b.x ||
-      b.x + b.width < a.x ||
-      a.y + a.height < b.y ||
-      b.y + b.height < a.y
+      a.x + a.width + 1 < b.x ||
+      b.x + b.width + 1 < a.x ||
+      a.y + a.height + 1 < b.y ||
+      b.y + b.height + 1 < a.y
     );
   }
 
   function fallbackRooms(width, height, targetCount) {
     const candidates = [
-      { x: 1, y: 1, width: 4, height: 3 },
-      { x: Math.max(6, width - 8), y: 1, width: 4, height: 3 },
-      { x: 1, y: Math.max(5, height - 6), width: 4, height: 3 },
-      { x: Math.max(6, width - 8), y: Math.max(5, height - 6), width: 4, height: 3 },
-      { x: Math.floor(width / 2) - 2, y: Math.floor(height / 2) - 1, width: 5, height: 3 },
-      { x: width - 5, y: height - 4, width: 3, height: 3 }
-    ].map((room) => ({
-      x: clamp(room.x, 1, width - room.width - 1),
-      y: clamp(room.y, 1, height - room.height - 1),
-      width: room.width,
-      height: room.height
-    }));
+      { x: 2, y: 2, width: 7, height: 6 },
+      { x: width - 12, y: 2, width: 9, height: 6 },
+      { x: 2, y: height - 10, width: 8, height: 7 },
+      { x: width - 13, y: height - 10, width: 10, height: 7 },
+      { x: Math.floor(width / 2) - 4, y: Math.floor(height / 2) - 3, width: 9, height: 7 },
+      { x: Math.floor(width / 2) - 5, y: 3, width: 10, height: 5 }
+    ].map((room, index) => createRoomMeta(
+      index,
+      clamp(room.x, 1, width - room.width - 1),
+      clamp(room.y, 1, height - room.height - 1),
+      room.width,
+      room.height
+    ));
 
     return shuffle(candidates).slice(0, Math.max(3, Math.min(targetCount, candidates.length)));
   }
@@ -513,8 +526,22 @@
 
   function roomCenter(room) {
     return {
-      x: Math.floor(room.x + room.width / 2),
-      y: Math.floor(room.y + room.height / 2)
+      x: room.centerX,
+      y: room.centerY
+    };
+  }
+
+  function createRoomMeta(index, x, y, width, height) {
+    return {
+      id: `room_${index}`,
+      x,
+      y,
+      width,
+      height,
+      centerX: Math.floor(x + width / 2),
+      centerY: Math.floor(y + height / 2),
+      isStartRoom: false,
+      isStairsRoom: false
     };
   }
 
@@ -550,6 +577,105 @@
 
   function keyOf(x, y) {
     return `${x},${y}`;
+  }
+
+  function isRoomCell(room, x, y) {
+    return (
+      x >= room.x &&
+      x < room.x + room.width &&
+      y >= room.y &&
+      y < room.y + room.height
+    );
+  }
+
+  function isRoomInteriorCell(room, x, y) {
+    if (!isRoomCell(room, x, y)) {
+      return false;
+    }
+    if (room.width <= 3 || room.height <= 3) {
+      return true;
+    }
+    return (
+      x > room.x &&
+      x < room.x + room.width - 1 &&
+      y > room.y &&
+      y < room.y + room.height - 1
+    );
+  }
+
+  function collectRoomCells(room, tiles, width, occupied, predicate = null) {
+    const candidates = [];
+    for (let y = room.y; y < room.y + room.height; y += 1) {
+      for (let x = room.x; x < room.x + room.width; x += 1) {
+        if (tiles[y * width + x] !== "floor" || occupied.has(keyOf(x, y))) {
+          continue;
+        }
+        const candidate = { x, y };
+        if (!predicate || predicate(candidate)) {
+          candidates.push(candidate);
+        }
+      }
+    }
+    return candidates;
+  }
+
+  function takeRandomRoomCell(room, tiles, width, occupied, predicate = null) {
+    const preferred = collectRoomCells(room, tiles, width, occupied, (candidate) => (
+      isRoomInteriorCell(room, candidate.x, candidate.y) &&
+      (!predicate || predicate(candidate))
+    ));
+    const fallback = preferred.length > 0 ? preferred : collectRoomCells(room, tiles, width, occupied, predicate);
+    if (fallback.length === 0) {
+      return null;
+    }
+    return fallback[Math.floor(Math.random() * fallback.length)];
+  }
+
+  function isValidMonsterCell(candidate, room, stairs) {
+    if (!isRoomCell(room, candidate.x, candidate.y)) {
+      return false;
+    }
+    if (candidate.x === stairs.x && candidate.y === stairs.y) {
+      return false;
+    }
+    if (manhattan(candidate.x, candidate.y, stairs.x, stairs.y) <= 1) {
+      return false;
+    }
+    return true;
+  }
+
+  function placeMonsterInRoom(monsters, room, occupied, tiles, width, floorIndex, stairs) {
+    const cell = takeRandomRoomCell(room, tiles, width, occupied, (candidate) => isValidMonsterCell(candidate, room, stairs));
+    if (!cell) {
+      return false;
+    }
+    occupied.add(keyOf(cell.x, cell.y));
+    monsters.push(createMonster(cell.x, cell.y, `${floorIndex}_${monsters.length}`));
+    return true;
+  }
+
+  function placeMonstersByRoom(monsters, rooms, occupied, tiles, width, height, floorIndex, stairs) {
+    const rules = getFloorRules(floorIndex);
+    const spawnRooms = rooms.filter((room) => !room.isStartRoom);
+    const largeRoomBonus = spawnRooms.reduce((count, room) => count + (room.width * room.height > 50 ? 1 : 0), 0);
+    const targetTotal = Math.max(randomFromRange(rules.monsters), spawnRooms.length + largeRoomBonus);
+
+    spawnRooms.forEach((room) => {
+      placeMonsterInRoom(monsters, room, occupied, tiles, width, floorIndex, stairs);
+      if (room.width * room.height > 50) {
+        placeMonsterInRoom(monsters, room, occupied, tiles, width, floorIndex, stairs);
+      }
+    });
+
+    let attempts = 0;
+    while (monsters.length < targetTotal && attempts < targetTotal * 4) {
+      attempts += 1;
+      const room = spawnRooms[Math.floor(Math.random() * spawnRooms.length)];
+      if (!room) {
+        break;
+      }
+      placeMonsterInRoom(monsters, room, occupied, tiles, width, floorIndex, stairs);
+    }
   }
 
   function placeMonsters(monsters, occupied, tiles, width, height, count, floorIndex, playerStart) {
@@ -1000,6 +1126,34 @@
     return config.camera || DEFAULT_CONFIG.camera;
   }
 
+  function getRoomAt(x, y) {
+    if (!state || !state.rooms || state.rooms.length === 0) {
+      return null;
+    }
+    return state.rooms.find((room) => isRoomCell(room, x, y)) || null;
+  }
+
+  function getCurrentRoom() {
+    if (!state) {
+      return null;
+    }
+    return getRoomAt(state.player.x, state.player.y);
+  }
+
+  function getCameraTarget() {
+    const room = getCurrentRoom();
+    if (room) {
+      return {
+        x: room.centerX,
+        y: room.centerY
+      };
+    }
+    return {
+      x: state.player.x,
+      y: state.player.y
+    };
+  }
+
   function applyHunger() {
     const hunger = getHungerConfig();
     if (!hunger || !hunger.enabled) {
@@ -1359,22 +1513,26 @@
     view.cameraMode = camera.cameraMode || "traditional-tilt";
     view.yScale = clamp(Number(camera.yScale) || 0.72, 0.7, 0.78);
     view.perspectiveOffset = clamp(Number(camera.perspectiveOffset) || 0, 0, 3);
-    view.tileW = Math.floor(clamp(availableW / Math.max(6, mapWidth), compact ? 44 : 52, compact ? 56 : 64));
+    view.playLeft = playLeft;
+    view.playTop = playTop;
+    view.playWidth = availableW;
+    view.playHeight = availableH;
+    view.tileW = Math.floor(clamp(Math.min(availableW / (compact ? 8 : 11), availableH / (compact ? 6.2 : 8.2)), compact ? 46 : 56, compact ? 56 : 64));
     view.tileH = view.tileW;
     view.rowStep = Math.floor(view.tileH * view.yScale);
     view.tileDepth = Math.floor(view.tileH * 0.34);
 
-    const projectedWidth = mapWidth * view.tileW + Math.max(0, mapHeight - 1) * view.perspectiveOffset;
-    const projectedHeight = mapHeight * view.rowStep + view.tileDepth + view.tileH * 0.95;
-    view.originX = Math.floor(playLeft + (availableW - projectedWidth) / 2);
-    view.originY = Math.floor(playTop + (availableH - projectedHeight) / 2);
-
     if (state && state.player) {
-      const playerScreen = tileCenterScreen(state.player.x, state.player.y);
-      const targetX = playLeft + availableW * 0.5;
-      const targetY = playTop + availableH * 0.56;
-      view.originX += clamp(targetX - playerScreen.x, -availableW * 0.18, availableW * 0.18);
-      view.originY += clamp(targetY - playerScreen.y, -availableH * 0.2, availableH * 0.2);
+      const cameraTarget = getCameraTarget();
+      const targetProjectedX = cameraTarget.x * view.tileW + cameraTarget.y * view.perspectiveOffset + view.tileW / 2;
+      const targetProjectedY = cameraTarget.y * view.rowStep + view.rowStep * 0.78;
+      view.originX = Math.floor(playLeft + availableW * 0.5 - targetProjectedX);
+      view.originY = Math.floor(playTop + availableH * 0.54 - targetProjectedY);
+    } else {
+      const projectedWidth = mapWidth * view.tileW + Math.max(0, mapHeight - 1) * view.perspectiveOffset;
+      const projectedHeight = mapHeight * view.rowStep + view.tileDepth + view.tileH * 0.95;
+      view.originX = Math.floor(playLeft + (availableW - projectedWidth) / 2);
+      view.originY = Math.floor(playTop + (availableH - projectedHeight) / 2);
     }
     drawMinimap();
   }

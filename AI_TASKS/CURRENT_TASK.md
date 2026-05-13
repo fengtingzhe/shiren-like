@@ -1,91 +1,64 @@
-# CURRENT_TASK：当前任务
+# CURRENT_TASK: 当前任务
 
 ## 任务名称
 
-Web Demo v0.4.1 / 传统轻斜俯视镜头修正版
-
----
+Web Demo v0.4.2 / 房间视野与镜头居中版
 
 ## 背景
 
-`Web Demo v0.4 / 镜头与画面表现调整版` 已经做出更强的战术地牢表达，但人类制作人试玩后确认：等距 / 菱形镜头虽然更有表现力，却明显降低了键盘方向操作的直觉性。
+v0.4.1 已经把主画面改回传统轻斜俯视，但主画面仍然会把整层迷宫缩进同一屏，探索感不足。本轮只修正随机房间尺寸、房间怪物分配和镜头居中策略，不新增怪物系统或后置玩法。
 
-本轮由 Codex 执行 v0.4.1，目标是在不新增玩法的前提下，把中央地图从等距菱形棋盘修正为更适合操作的 75° 传统轻斜俯视视角。
+## 本轮目标
 
----
-
-## 本任务服务的 Demo 目标
-
-- [x] 废弃 v0.4 的主要等距菱形投影
-- [x] 改为 75° 传统轻斜俯视矩形格
-- [x] 保证屏幕上下左右与键盘上下左右一致
-- [x] 保留轻微纵深和棋子感
-- [x] 保留 v0.4 的 HUD、小地图、敌人面板和快捷栏
-- [x] 保留 v0.3 的随机迷宫、饥饿、道具、楼梯和胜负条件
+- [x] 地图尺寸恢复为 `36 x 28`
+- [x] 房间数量调整为 `5 - 8`
+- [x] 房间宽高随机范围调整为 `3x3` 到 `10x10`
+- [x] 在楼层状态中保存 `rooms` 元数据
+- [x] 每个非出生房间至少生成 `1` 只怪物
+- [x] 大房间追加额外怪物压力
+- [x] 楼梯房保留怪物，但避免刷在楼梯或楼梯相邻 1 格内
+- [x] 玩家位于房间时，镜头以房间中心为目标
+- [x] 玩家位于走廊时，镜头跟随玩家
+- [x] 主画面不再自动缩小到显示整层地图
+- [x] 保留 v0.3 / v0.4.1 的 HUD、小地图、敌人面板、快捷栏、饥饿和道具逻辑
 - [ ] v0.5 怪物机制
 - [ ] Godot 迁移
 
----
+## 本轮范围
 
-## 范围
-
-本轮完成：
-
-- 更新 `Builds/web-demo/game.js`，将核心镜头改为 `traditional-tilt`；
-- 将 `tileToScreen` / `screenToTile` 从等距公式改为传统轻斜俯视坐标；
-- 将地砖从菱形格改为轻斜俯视矩形格；
-- 保留并适配蓝色行动范围、红色威胁范围、楼梯、道具、怪物和玩家绘制；
-- 保留 v0.4 的左上状态区、右上小地图、右侧敌人面板、底部快捷栏；
-- 更新 `Builds/web-demo/README.md`；
-- 更新 `Data/config/web_demo_balance.json` 为 v0.4.1 并加入镜头参数；
-- 更新 `Tests/web-demo-smoke.mjs`；
-- 更新 `AI_TASKS/CHANGELOG.md`、`AI_TASKS/DEV_LOG.md` 和 `AI_TASKS/NEXT_CODEX_PROMPT.md`。
-
----
+- `Builds/web-demo/game.js`
+- `Builds/web-demo/README.md`
+- `Data/config/web_demo_balance.json`
+- `Tests/web-demo-smoke.mjs`
+- `AI_TASKS/CURRENT_TASK.md`
+- `AI_TASKS/CHANGELOG.md`
+- `AI_TASKS/DEV_LOG.md`
+- `AI_TASKS/NEXT_CODEX_PROMPT.md`
 
 ## 本轮不做
 
-- 不做新怪物机制；
-- 不做弓手怪、爆弹怪、骷髅枪兵等怪物机制版内容；
-- 不做未鉴定；
-- 不做装备；
-- 不做陷阱；
-- 不做怪物屋；
-- 不做壶；
-- 不做商店；
-- 不做据点；
-- 不做复杂 Boss；
-- 不做 Godot 工程；
-- 不引入 React、Phaser、Three.js、PixiJS 或复杂 npm 依赖；
-- 不做商业化系统。
-
----
+- 不新增新怪物类型或复杂 AI
+- 不做未鉴定、装备、陷阱、怪物屋、壶、商店、据点、Boss
+- 不做 Godot 工程
+- 不引入 React、Phaser、Three.js、PixiJS 或新的 npm 依赖
 
 ## 验收标准
 
-- [x] `node --check Builds/web-demo/game.js` 通过；
-- [x] `node --check Tools/web-demo-server.mjs` 通过；
-- [x] `node Tests/web-demo-smoke.mjs` 通过；
-- [x] `node Tools/web-demo-server.mjs` 可以启动；
-- [x] `http://127.0.0.1:4173/Builds/web-demo/` 可以打开；
-- [x] 按 W / 上方向键，角色在屏幕中向上移动；
-- [x] 按 S / 下方向键，角色在屏幕中向下移动；
-- [x] 按 A / 左方向键，角色在屏幕中向左移动；
-- [x] 按 D / 右方向键，角色在屏幕中向右移动；
-- [x] 地图不再是明显等距菱形棋盘；
-- [x] 地图改为传统轻斜俯视矩形格；
-- [x] 蓝色行动范围和红色威胁范围仍可用；
-- [x] 小地图、敌人面板、快捷栏仍可用；
-- [x] v0.3 的随机迷宫、饥饿、道具、楼梯和胜负条件仍可用；
-- [x] 没有加入新怪物机制和后置复杂系统；
-- [x] 没有残留 kingdom-like 核心玩法词。
-
----
+- [x] `node --check Builds/web-demo/game.js`
+- [x] `node --check Tools/web-demo-server.mjs`
+- [x] `node Tests/web-demo-smoke.mjs`
+- [x] `http://127.0.0.1:4173/Builds/web-demo/` 可试玩
+- [x] 房间宽高在 `3x3` 到 `10x10` 之间随机
+- [x] 每个非出生房间至少有 `1` 只怪物
+- [x] 楼梯房怪物不会堵在楼梯或楼梯相邻 1 格
+- [x] 房间内镜头以房间中心为准
+- [x] 走廊内镜头跟随玩家
+- [x] 主画面不再一屏显示整层迷宫
+- [x] 小地图继续提供整层总览
+- [x] v0.3 / v0.4.1 的基础玩法与面板不回退
 
 ## 下一轮建议
 
 ```text
 Web Demo v0.5 / 怪物机制版
 ```
-
-建议先由人类制作人试玩 v0.4.1，确认传统轻斜俯视的手感、可读性和面板信息密度，再决定 v0.5 是优先做远程怪、干扰怪还是隔格攻击怪。
