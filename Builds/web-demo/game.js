@@ -1699,21 +1699,27 @@
     view.rowStep = Math.round(sanitizeCameraValue("rowStep", cameraView.rowStep) * view.cameraZoom);
     view.tileDepth = Math.round(sanitizeCameraValue("tileDepth", cameraView.tileDepth) * view.cameraZoom);
 
+    updateCameraOrigin();
+    drawMinimap();
+  }
+
+  function updateCameraOrigin() {
+    const canvasWidth = view.width || canvas.getBoundingClientRect().width;
+    const canvasHeight = view.height || canvas.getBoundingClientRect().height;
     if (state && state.player) {
       const cameraTarget = getCameraTarget();
       const playerAnchor = getPlayerAnchorLocal();
       const targetProjectedX = cameraTarget.x * view.tileW + cameraTarget.y * view.perspectiveOffset + playerAnchor.x;
       const targetProjectedY = cameraTarget.y * view.rowStep + playerAnchor.y;
-      const centeredOriginX = rect.width * 0.5 + view.cameraCenterOffsetX - targetProjectedX;
-      const centeredOriginY = rect.height * 0.5 + view.cameraCenterOffsetY - targetProjectedY;
+      const centeredOriginX = canvasWidth * 0.5 + view.cameraCenterOffsetX - targetProjectedX;
+      const centeredOriginY = canvasHeight * 0.5 + view.cameraCenterOffsetY - targetProjectedY;
       view.originX = Math.floor(centeredOriginX);
       view.originY = Math.floor(centeredOriginY);
     } else {
       const playerAnchor = getPlayerAnchorLocal();
-      view.originX = Math.floor(rect.width * 0.5 - playerAnchor.x);
-      view.originY = Math.floor(rect.height * 0.5 - playerAnchor.y);
+      view.originX = Math.floor(canvasWidth * 0.5 - playerAnchor.x);
+      view.originY = Math.floor(canvasHeight * 0.5 - playerAnchor.y);
     }
-    drawMinimap();
   }
 
   function tileToScreen(x, y) {
@@ -1766,6 +1772,7 @@
   }
 
   function render() {
+    updateCameraOrigin();
     ctx.clearRect(0, 0, view.width, view.height);
     drawBackground();
     if (!state) {
