@@ -99,6 +99,15 @@
         <button id="console-pause-button" class="console-action" type="button">暂停 / 继续</button>
         <button id="console-reset-button" class="console-action" type="button">重置 Demo</button>
         <div id="fps-readout" class="fps-readout is-hidden">FPS 0</div>
+        <section class="console-section" aria-label="camera view tuning">
+          <div class="console-section-header">
+            <h3>Camera / View</h3>
+            <button id="camera-copy-button" class="console-mini-action" type="button">复制参数</button>
+          </div>
+          <div id="camera-controls" class="camera-controls"></div>
+          <button id="camera-reset-button" class="console-action" type="button">重置镜头参数</button>
+          <pre id="camera-json-output" class="camera-json-output"></pre>
+        </section>
       </aside>
 
       <section id="start-overlay" class="overlay">

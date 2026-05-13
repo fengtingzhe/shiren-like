@@ -1,7 +1,7 @@
 (() => {
   const CONFIG_URL = "../../Data/config/web_demo_balance.json";
   const DEFAULT_CONFIG = {
-    version: "v0.4.2",
+    version: "v0.4.3",
     dungeon: {
       maxFloors: 3,
       width: 36,
@@ -12,9 +12,9 @@
         roomWidth: [3, 10],
         roomHeight: [3, 10],
         floorRules: [
-          { monsters: [2, 3], potion: [1, 1], food: [1, 1], strategyItems: [1, 2] },
-          { monsters: [3, 4], potion: [1, 1], food: [1, 1], strategyItems: [2, 2] },
-          { monsters: [4, 5], potion: [1, 1], food: [1, 2], strategyItems: [2, 3] }
+          { monsters: [5, 7], potion: [1, 1], food: [1, 1], strategyItems: [1, 2] },
+          { monsters: [6, 8], potion: [1, 1], food: [1, 1], strategyItems: [2, 2] },
+          { monsters: [7, 9], potion: [1, 1], food: [1, 2], strategyItems: [2, 3] }
         ],
         strategyItemTypes: ["teleport", "sleep", "fireball", "swap"]
       },
@@ -131,8 +131,15 @@
     },
     camera: {
       cameraMode: "traditional-tilt",
+      tileW: 104,
+      tileH: 104,
       yScale: 0.72,
-      perspectiveOffset: 2
+      rowStep: 75,
+      perspectiveOffset: 2,
+      tileDepth: 22,
+      cameraZoom: 1,
+      cameraCenterOffsetX: 0,
+      cameraCenterOffsetY: 0
     }
   };
 
@@ -170,6 +177,10 @@
     consolePanel: document.getElementById("console-panel"),
     consolePause: document.getElementById("console-pause-button"),
     consoleReset: document.getElementById("console-reset-button"),
+    cameraControls: document.getElementById("camera-controls"),
+    cameraReset: document.getElementById("camera-reset-button"),
+    cameraCopy: document.getElementById("camera-copy-button"),
+    cameraJson: document.getElementById("camera-json-output"),
     musicToggle: document.getElementById("music-toggle"),
     sfxToggle: document.getElementById("sfx-toggle"),
     fpsToggle: document.getElementById("fps-toggle"),
@@ -207,11 +218,25 @@
 
   const ITEM_ORDER = ["potion", "food", "teleport", "sleep", "fireball", "swap"];
 
+  const CAMERA_FIELDS = [
+    { key: "tileW", label: "tileW", min: 48, max: 160, step: 4, digits: 0 },
+    { key: "tileH", label: "tileH", min: 48, max: 160, step: 4, digits: 0 },
+    { key: "yScale", label: "yScale", min: 0.5, max: 1, step: 0.02, digits: 2 },
+    { key: "rowStep", label: "rowStep", min: 32, max: 128, step: 2, digits: 0 },
+    { key: "perspectiveOffset", label: "perspectiveOffset", min: 0, max: 8, step: 0.5, digits: 1 },
+    { key: "tileDepth", label: "tileDepth", min: 0, max: 40, step: 2, digits: 0 },
+    { key: "cameraZoom", label: "cameraZoom", min: 0.75, max: 2, step: 0.05, digits: 2 },
+    { key: "cameraCenterOffsetX", label: "cameraCenterOffsetX", min: -300, max: 300, step: 10, digits: 0 },
+    { key: "cameraCenterOffsetY", label: "cameraCenterOffsetY", min: -200, max: 200, step: 10, digits: 0 }
+  ];
+
   let config = DEFAULT_CONFIG;
   let state = null;
   let lastFrame = 0;
   let fpsFrameCount = 0;
   let fpsElapsed = 0;
+  let cameraDefaults = null;
+  let cameraSession = null;
   const view = {
     width: 0,
     height: 0,
@@ -223,6 +248,9 @@
     rowStep: 43,
     yScale: 0.72,
     perspectiveOffset: 2,
+    cameraZoom: 1,
+    cameraCenterOffsetX: 0,
+    cameraCenterOffsetY: 0,
     playLeft: 0,
     playTop: 0,
     playWidth: 0,
@@ -1126,6 +1154,52 @@
     return config.camera || DEFAULT_CONFIG.camera;
   }
 
+  function getCameraDefaults() {
+    const camera = getCameraConfig();
+    return {
+      tileW: Number(camera.tileW) || 104,
+      tileH: Number(camera.tileH) || 104,
+      yScale: Number(camera.yScale) || 0.72,
+      rowStep: Number(camera.rowStep) || 75,
+      perspectiveOffset: Number(camera.perspectiveOffset) || 2,
+      tileDepth: Number(camera.tileDepth) || 22,
+      cameraZoom: Number(camera.cameraZoom) || 1,
+      cameraCenterOffsetX: Number(camera.cameraCenterOffsetX) || 0,
+      cameraCenterOffsetY: Number(camera.cameraCenterOffsetY) || 0
+    };
+  }
+
+  function getCameraField(key) {
+    return CAMERA_FIELDS.find((field) => field.key === key);
+  }
+
+  function roundCameraValue(field, value) {
+    const factor = 10 ** field.digits;
+    return Math.round(value * factor) / factor;
+  }
+
+  function sanitizeCameraValue(key, value) {
+    const field = getCameraField(key);
+    if (!field) {
+      return value;
+    }
+    const numeric = Number(value);
+    const safeValue = Number.isFinite(numeric) ? numeric : cameraDefaults[key];
+    return roundCameraValue(field, clamp(safeValue, field.min, field.max));
+  }
+
+  function getCameraSession() {
+    if (!cameraSession) {
+      cameraDefaults = getCameraDefaults();
+      cameraSession = clone(cameraDefaults);
+    }
+    return cameraSession;
+  }
+
+  function formatCameraValue(field, value) {
+    return field.digits > 0 ? Number(value).toFixed(field.digits) : String(Math.round(value));
+  }
+
   function getRoomAt(x, y) {
     if (!state || !state.rooms || state.rooms.length === 0) {
       return null;
@@ -1141,13 +1215,6 @@
   }
 
   function getCameraTarget() {
-    const room = getCurrentRoom();
-    if (room) {
-      return {
-        x: room.centerX,
-        y: room.centerY
-      };
-    }
     return {
       x: state.player.x,
       y: state.player.y
@@ -1343,9 +1410,117 @@
 
     updateItemButtons();
     updateTacticalPanels();
+    updateCameraConsole();
     ui.waitButton.disabled = !state.running || state.paused || state.gameOver;
     ui.stairsButton.disabled = !state.running || state.paused || state.gameOver || !isOnStairs();
     ui.pause.setAttribute("aria-label", state.paused ? "resume" : "pause");
+  }
+
+  function buildCameraControls() {
+    if (!ui.cameraControls) {
+      return;
+    }
+    ui.cameraControls.innerHTML = CAMERA_FIELDS.map((field) => `
+      <div class="camera-control">
+        <div class="camera-control-head">
+          <strong>${field.label}</strong>
+          <span id="camera-${field.key}-value"></span>
+        </div>
+        <div class="camera-control-inputs">
+          <input
+            id="camera-${field.key}-range"
+            class="camera-slider"
+            type="range"
+            min="${field.min}"
+            max="${field.max}"
+            step="${field.step}"
+            data-camera-key="${field.key}"
+            data-camera-input="range"
+          >
+          <input
+            id="camera-${field.key}-number"
+            class="camera-number"
+            type="number"
+            min="${field.min}"
+            max="${field.max}"
+            step="${field.step}"
+            data-camera-key="${field.key}"
+            data-camera-input="number"
+          >
+        </div>
+      </div>
+    `).join("");
+
+    ui.cameraControls.querySelectorAll("[data-camera-key]").forEach((input) => {
+      input.addEventListener("input", (event) => {
+        const { cameraKey, cameraInput } = event.target.dataset;
+        setCameraField(cameraKey, event.target.value, cameraInput);
+      });
+      input.addEventListener("change", (event) => {
+        const { cameraKey, cameraInput } = event.target.dataset;
+        setCameraField(cameraKey, event.target.value, cameraInput);
+      });
+    });
+  }
+
+  function updateCameraConsole() {
+    const session = getCameraSession();
+    CAMERA_FIELDS.forEach((field) => {
+      const value = sanitizeCameraValue(field.key, session[field.key]);
+      session[field.key] = value;
+      const valueLabel = document.getElementById(`camera-${field.key}-value`);
+      const range = document.getElementById(`camera-${field.key}-range`);
+      const number = document.getElementById(`camera-${field.key}-number`);
+      if (valueLabel) {
+        valueLabel.textContent = formatCameraValue(field, value);
+      }
+      if (range) {
+        range.value = String(value);
+      }
+      if (number) {
+        number.value = String(value);
+      }
+    });
+    if (ui.cameraJson) {
+      ui.cameraJson.textContent = JSON.stringify(session, null, 2);
+    }
+  }
+
+  function setCameraField(key, rawValue, source) {
+    const session = getCameraSession();
+    const nextValue = sanitizeCameraValue(key, rawValue);
+    session[key] = nextValue;
+    updateCameraConsole();
+    if (source === "number") {
+      const range = document.getElementById(`camera-${key}-range`);
+      if (range) {
+        range.value = String(nextValue);
+      }
+    }
+    resizeCanvas();
+  }
+
+  function resetCameraSession() {
+    cameraSession = clone(cameraDefaults || getCameraDefaults());
+    updateCameraConsole();
+    resizeCanvas();
+    addMessage("镜头参数已重置为当前配置默认值。");
+    updateUi();
+  }
+
+  async function copyCameraSession() {
+    const payload = JSON.stringify(getCameraSession(), null, 2);
+    let copied = false;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(payload);
+        copied = true;
+      } catch (error) {
+        console.warn("Unable to copy camera parameters.", error);
+      }
+    }
+    addMessage(copied ? "当前镜头参数已复制，可直接回传给 Codex。" : "无法直接访问剪贴板，请从 Console 复制当前镜头参数。");
+    updateUi();
   }
 
   function updateItemButtons() {
@@ -1510,27 +1685,38 @@
     const availableW = Math.max(280, playRight - playLeft);
     const availableH = Math.max(220, playBottom - playTop);
     const camera = getCameraConfig();
+    const cameraView = getCameraSession();
     view.cameraMode = camera.cameraMode || "traditional-tilt";
-    view.yScale = clamp(Number(camera.yScale) || 0.72, 0.7, 0.78);
-    view.perspectiveOffset = clamp(Number(camera.perspectiveOffset) || 0, 0, 3);
+    view.cameraZoom = sanitizeCameraValue("cameraZoom", cameraView.cameraZoom);
+    view.yScale = sanitizeCameraValue("yScale", cameraView.yScale);
+    view.perspectiveOffset = sanitizeCameraValue("perspectiveOffset", cameraView.perspectiveOffset) * view.cameraZoom;
+    view.cameraCenterOffsetX = sanitizeCameraValue("cameraCenterOffsetX", cameraView.cameraCenterOffsetX);
+    view.cameraCenterOffsetY = sanitizeCameraValue("cameraCenterOffsetY", cameraView.cameraCenterOffsetY);
     view.playLeft = playLeft;
     view.playTop = playTop;
     view.playWidth = availableW;
     view.playHeight = availableH;
-    view.tileW = Math.floor(clamp(Math.min(availableW / (compact ? 8 : 11), availableH / (compact ? 6.2 : 8.2)), compact ? 46 : 56, compact ? 56 : 64));
-    view.tileH = view.tileW;
-    view.rowStep = Math.floor(view.tileH * view.yScale);
-    view.tileDepth = Math.floor(view.tileH * 0.34);
+    view.tileW = Math.round(sanitizeCameraValue("tileW", cameraView.tileW) * view.cameraZoom);
+    view.tileH = Math.round(sanitizeCameraValue("tileH", cameraView.tileH) * view.cameraZoom);
+    view.rowStep = Math.round(sanitizeCameraValue("rowStep", cameraView.rowStep) * view.cameraZoom);
+    view.tileDepth = Math.round(sanitizeCameraValue("tileDepth", cameraView.tileDepth) * view.cameraZoom);
+
+    const projectedWidth = Math.max(1, (mapWidth - 1) * view.tileW + Math.max(0, mapHeight - 1) * view.perspectiveOffset + view.tileW);
+    const projectedHeight = Math.max(1, (mapHeight - 1) * view.rowStep + view.tileDepth + view.tileH);
 
     if (state && state.player) {
       const cameraTarget = getCameraTarget();
       const targetProjectedX = cameraTarget.x * view.tileW + cameraTarget.y * view.perspectiveOffset + view.tileW / 2;
       const targetProjectedY = cameraTarget.y * view.rowStep + view.rowStep * 0.78;
-      view.originX = Math.floor(playLeft + availableW * 0.5 - targetProjectedX);
-      view.originY = Math.floor(playTop + availableH * 0.54 - targetProjectedY);
+      const centeredOriginX = playLeft + availableW * 0.5 + view.cameraCenterOffsetX - targetProjectedX;
+      const centeredOriginY = playTop + availableH * 0.54 + view.cameraCenterOffsetY - targetProjectedY;
+      const minOriginX = projectedWidth > availableW ? playLeft + availableW - projectedWidth : playLeft + (availableW - projectedWidth) / 2;
+      const maxOriginX = projectedWidth > availableW ? playLeft : playLeft + (availableW - projectedWidth) / 2;
+      const minOriginY = projectedHeight > availableH ? playTop + availableH - projectedHeight : playTop + (availableH - projectedHeight) / 2;
+      const maxOriginY = projectedHeight > availableH ? playTop : playTop + (availableH - projectedHeight) / 2;
+      view.originX = Math.floor(clamp(centeredOriginX, minOriginX, maxOriginX));
+      view.originY = Math.floor(clamp(centeredOriginY, minOriginY, maxOriginY));
     } else {
-      const projectedWidth = mapWidth * view.tileW + Math.max(0, mapHeight - 1) * view.perspectiveOffset;
-      const projectedHeight = mapHeight * view.rowStep + view.tileDepth + view.tileH * 0.95;
       view.originX = Math.floor(playLeft + (availableW - projectedWidth) / 2);
       view.originY = Math.floor(playTop + (availableH - projectedHeight) / 2);
     }
@@ -1998,6 +2184,14 @@
       settings.showFps = event.target.checked;
       ui.fpsReadout.classList.toggle("is-hidden", !settings.showFps);
     });
+    if (ui.cameraReset) {
+      ui.cameraReset.addEventListener("click", resetCameraSession);
+    }
+    if (ui.cameraCopy) {
+      ui.cameraCopy.addEventListener("click", () => {
+        copyCameraSession();
+      });
+    }
   }
 
   function handleKey(code) {
@@ -2083,6 +2277,9 @@
 
   async function init() {
     config = await loadConfig();
+    cameraDefaults = getCameraDefaults();
+    cameraSession = clone(cameraDefaults);
+    buildCameraControls();
     createState();
     resizeCanvas();
     bindEvents();

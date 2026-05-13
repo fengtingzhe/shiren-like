@@ -640,6 +640,102 @@ button {
   cursor: pointer;
 }
 
+.console-section {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.console-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.console-section-header h3 {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.console-mini-action {
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 6px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+}
+
+.camera-controls {
+  display: grid;
+  gap: 10px;
+}
+
+.camera-control {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.camera-control-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.camera-control-head strong {
+  font-size: 13px;
+}
+
+.camera-control-head span {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.camera-control-inputs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 78px;
+  gap: 8px;
+  align-items: center;
+}
+
+.camera-slider {
+  width: 100%;
+  accent-color: var(--gold);
+}
+
+.camera-number {
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  background: rgba(8, 12, 13, 0.78);
+}
+
+.camera-json-output {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(105, 191, 192, 0.24);
+  border-radius: 8px;
+  color: var(--teal);
+  background: rgba(8, 12, 13, 0.78);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .fps-readout {
   margin-top: 14px;
   padding: 10px 12px;

@@ -1,5 +1,5 @@
 {
-  "version": "v0.4.2",
+  "version": "v0.4.3",
   "dungeon": {
     "maxFloors": 3,
     "width": 36,
@@ -144,7 +144,14 @@
   },
   "camera": {
     "cameraMode": "traditional-tilt",
+    "tileW": 104,
+    "tileH": 104,
     "yScale": 0.72,
-    "perspectiveOffset": 2
+    "rowStep": 75,
+    "perspectiveOffset": 2,
+    "tileDepth": 22,
+    "cameraZoom": 1,
+    "cameraCenterOffsetX": 0,
+    "cameraCenterOffsetY": 0
   }
 }
