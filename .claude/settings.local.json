@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "WebSearch"
+      "WebSearch",
+      "Bash(node -e \"const fs = require\\('fs'\\); const content = fs.readFileSync\\('d:/work/shiren-like/Builds/web-demo/game.js', 'utf8'\\); const idx = content.indexOf\\('ui.resultTitle.textContent'\\); console.log\\(content.substring\\(idx - 30, idx + 200\\)\\);\")",
+      "Bash(node \"d:/work/shiren-like/Tests/web-demo-smoke.mjs\")"
     ]
   }
 }

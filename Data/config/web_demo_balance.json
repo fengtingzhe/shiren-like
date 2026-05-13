@@ -1,5 +1,5 @@
 {
-  "version": "v0.9",
+  "version": "v1.0",
   "dungeon": {
     "maxFloors": 3,
     "width": 36,
@@ -17,7 +17,7 @@
             { "type": "goblin_archer", "weight": 20 }
           ],
           "potion": [1, 1],
-          "food": [1, 1],
+          "food": [0, 1],
           "strategyItems": [1, 2],
           "equipment": [1, 2],
           "equipmentTypes": [

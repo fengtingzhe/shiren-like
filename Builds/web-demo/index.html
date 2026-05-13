@@ -52,6 +52,12 @@
                 <strong id="shield-value">-</strong>
               </div>
             </div>
+            <div id="sleep-indicator" class="sleep-indicator is-hidden" aria-label="sleep status">
+              <span class="sleep-icon">Z</span>
+              <span>睡眠</span>
+              <strong id="sleep-turns-value">0</strong>
+              <span>回合</span>
+            </div>
           </div>
           <div class="status-tools">
             <button id="pause-button" class="icon-button" type="button" aria-label="pause">
@@ -156,7 +162,11 @@
             <span class="play-icon"></span>
             开始 Demo
           </button>
-          <p class="control-note">WASD / 方向键移动，H 药，F 食物，T / Z 卷轴，R / X 木杖，C 装备，G 入包，B 背包，空格等待，E 下楼。</p>
+          <p class="control-note">
+            <span class="key-group">移动：WASD / 方向键 | 等待：空格 / .</span><br>
+            <span class="key-group">道具：H 恢复药 F 食物 T/Z 卷轴 R/X 木杖</span><br>
+            <span class="key-group">操作：C 装备脚下 G 入包 B 背包 E 下楼</span>
+          </p>
         </div>
       </section>
 
@@ -170,12 +180,24 @@
               <dd id="result-floor">1F</dd>
             </div>
             <div>
+              <dt>总回合数</dt>
+              <dd id="result-turns">0</dd>
+            </div>
+            <div>
               <dt>击败怪物</dt>
               <dd id="result-kills">0</dd>
             </div>
             <div>
               <dt>使用道具</dt>
               <dd id="result-items">0</dd>
+            </div>
+            <div>
+              <dt>已鉴定</dt>
+              <dd id="result-identified">0</dd>
+            </div>
+            <div>
+              <dt>获得装备</dt>
+              <dd id="result-equipment">0</dd>
             </div>
           </dl>
           <button id="restart-button" class="primary-button" type="button">

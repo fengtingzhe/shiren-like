@@ -23,15 +23,25 @@ assert.match(html, /game-canvas/, "HTML should include the main canvas");
 assert.match(html, /inventory-panel/, "HTML should include inventory panel");
 assert.match(html, /inventory-list/, "HTML should include inventory list");
 assert.match(html, /inventory-value/, "HTML should expose inventory capacity");
+assert.match(html, /sleep-indicator/, "HTML should include sleep indicator");
+assert.match(html, /result-turns/, "HTML should include result turns stat");
+assert.match(html, /result-identified/, "HTML should include result identified stat");
+assert.match(html, /result-equipment/, "HTML should include result equipment stat");
 
 const css = readFileSync(paths.css, "utf8");
 assert.match(css, /inventory-panel/, "CSS should style the inventory panel");
 assert.match(css, /inventory-row/, "CSS should style inventory rows");
+assert.match(css, /sleep-indicator/, "CSS should style sleep indicator");
+assert.match(css, /behavior-tag/, "CSS should style behavior tags");
+assert.match(css, /unidentified-tag/, "CSS should style unidentified tags");
 
 const webReadme = readFileSync(paths.webReadme, "utf8");
-assert.match(webReadme, /v0\.9 \/ 未鉴定与道具风险版/, "README should describe v0.9");
+assert.match(webReadme, /v1\.0 \/ 单局体验整合与可读性打磨版/, "README should describe v1.0");
+assert.match(webReadme, /操作/, "README should mention controls");
+assert.match(webReadme, /背包/, "README should mention inventory");
 assert.match(webReadme, /未鉴定/, "README should mention unidentified items");
-assert.match(webReadme, /识别/, "README should mention identification");
+assert.match(webReadme, /死亡原因/, "README should mention death reasons");
+assert.match(webReadme, /结算/, "README should mention result screen");
 assert.match(webReadme, /投掷/, "README should mention throwing");
 
 const js = readFileSync(paths.js, "utf8");
@@ -61,9 +71,12 @@ assert.match(js, /applyTerrainAt/, "JS should keep terrain damage");
 assert.match(js, /actMonster/, "JS should keep monster AI");
 assert.match(js, /generateDungeon/, "JS should keep dungeon generation");
 assert.match(js, /CAMERA_FIELDS/, "JS should keep camera tuning");
+assert.match(js, /getMonsterBehaviorTag/, "JS should provide monster behavior tags");
+assert.match(js, /deathReason/, "JS should track death reason");
+assert.match(js, /result-turns/, "JS should reference result turns element");
 
 const config = JSON.parse(readFileSync(paths.config, "utf8"));
-assert.equal(config.version, "v0.9", "config should be v0.9");
+assert.equal(config.version, "v1.0", "config should be v1.0");
 assert.equal(typeof config.inventorySystem, "object", "config should include inventorySystem");
 assert.equal(config.inventorySystem.capacity, 8, "inventory capacity should be 8");
 assert.equal(config.inventorySystem.throwRange, 5, "inventory throw range should be configured");
@@ -88,4 +101,4 @@ for (const term of forbiddenCoreTerms) {
   assert.equal(js.includes(term), false, `JS should not keep old core term: ${term}`);
 }
 
-console.log("v0.9 shiren-like identification smoke test passed");
+console.log("v1.0 shiren-like smoke test passed");

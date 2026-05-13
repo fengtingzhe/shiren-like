@@ -1,7 +1,7 @@
 ﻿(() => {
   const CONFIG_URL = "../../Data/config/web_demo_balance.json";
   const DEFAULT_CONFIG = {
-    version: "v0.9",
+    version: "v1.0",
     dungeon: {
       maxFloors: 3,
       width: 36,
@@ -19,7 +19,7 @@
               { type: "goblin_archer", weight: 20 }
             ],
             potion: [1, 1],
-            food: [1, 1],
+            food: [0, 1],
             strategyItems: [1, 2],
             equipment: [1, 2],
             equipmentTypes: [
@@ -439,6 +439,9 @@
     resultFloor: document.getElementById("result-floor"),
     resultKills: document.getElementById("result-kills"),
     resultItems: document.getElementById("result-items"),
+    resultTurns: document.getElementById("result-turns"),
+    resultIdentified: document.getElementById("result-identified"),
+    resultEquipment: document.getElementById("result-equipment"),
     restart: document.getElementById("restart-button"),
     pause: document.getElementById("pause-button"),
     inventoryButton: document.getElementById("inventory-button"),
@@ -461,7 +464,9 @@
     fpsReadout: document.getElementById("fps-readout"),
     minimap: document.getElementById("minimap-canvas"),
     enemyList: document.getElementById("enemy-list"),
-    turnOrder: document.getElementById("turn-order")
+    turnOrder: document.getElementById("turn-order"),
+    sleepIndicator: document.getElementById("sleep-indicator"),
+    sleepTurnsValue: document.getElementById("sleep-turns-value")
   };
   const minimapCtx = ui.minimap ? ui.minimap.getContext("2d") : null;
 
@@ -633,7 +638,9 @@
     };
     state = nextState;
     loadFloor(0);
-    addMessage("第 1 层开始。随机迷宫已生成，注意饱腹度。");
+    addMessage("提示：T/Z 卷轴和 R/X 木杖需要先使用或投掷才会显示真实效果。");
+    addMessage("提示：每次有效行动都会消耗饱腹度，注意食物管理。");
+    addMessage("第 1 层开始。目标：搜索道具，找到楼梯并下到 3F 即可通关。");
     return nextState;
   }
 
@@ -760,7 +767,8 @@
     if (!result) {
       return;
     }
-    addMessage(`${result.unknownName}的效果原来是${result.realName}。之后同类道具会显示真实名称。`);
+    const actionLabel = result.reason === "throw" ? "投掷" : "使用";
+    addMessage(`通过${actionLabel}确认了「${result.unknownName}」的真实效果：${result.realName}。之后同类道具会显示真实名称。`);
   }
 
   function getInventoryCapacity() {
@@ -1985,7 +1993,7 @@
     }
     const groundItem = findEquipmentAtPlayer();
     if (!groundItem) {
-      addMessage("脚下没有可装备的物品。");
+      addMessage("脚下没有可装备或收取的装备。");
       updateUi();
       return;
     }
@@ -2070,10 +2078,13 @@
           <button class="inventory-action" type="button" data-inventory-action="equip" data-kind="equipment" data-id="${escapeHtml(entry.id)}">E 装备</button>
           <button class="inventory-action" type="button" data-inventory-action="throw" data-kind="equipment" data-id="${escapeHtml(entry.id)}">T 投掷</button>
         `;
+      const unidentifiedHtml = entry.kind === "consumable" && !isItemIdentified(entry.type)
+        ? '<span class="unidentified-tag">未识别</span>'
+        : "";
       return `
         <div class="inventory-row">
           <div class="inventory-main">
-            <div class="inventory-name">${index + 1}. ${escapeHtml(entry.name)}</div>
+            <div class="inventory-name">${index + 1}. ${escapeHtml(entry.name)}${unidentifiedHtml}</div>
             <div class="inventory-sub">${escapeHtml(entry.summary)}</div>
           </div>
           <div class="inventory-actions">${actions}</div>
@@ -2212,7 +2223,7 @@
       getThrowingConfig().maxRange || getInventoryConfig().throwRange || 5
     );
     if (!result.lastFloor && !result.hitMonster) {
-      addMessage("前方没有可投掷的路径。");
+      addMessage("前方没有可投掷的目标。");
       updateUi();
       return;
     }
@@ -2266,7 +2277,7 @@
       return;
     }
     if (!hasItem("potion")) {
-      addMessage("没有恢复药。");
+      addMessage("背包里没有恢复药。");
       updateUi();
       return;
     }
@@ -2292,7 +2303,7 @@
       return;
     }
     if (!hasItem("food")) {
-      addMessage("没有食物。");
+      addMessage("背包里没有食物。");
       updateUi();
       return;
     }
@@ -2975,6 +2986,17 @@
     }
     return monster.icon || "敌";
   }
+
+  function getMonsterBehaviorTag(monster) {
+    switch (monster.behavior) {
+      case "melee": return "近战";
+      case "ranged": return "远程";
+      case "sleep_spore": return "催眠";
+      case "reach_attack": return "长枪";
+      default: return "";
+    }
+  }
+
   function checkLowHp() {
     if (state.player.hp > 0 && state.player.hp <= 5) {
       addMessage("HP 很低，考虑使用恢复药或拉开距离。");
@@ -2996,9 +3018,18 @@
     setInventoryOpen(false);
     ui.resultTitle.textContent = victory ? "鑳滃埄" : "姝讳骸";
     ui.resultCopy.textContent = copy;
+    const identifiedCount = state.identification && state.identification.knownTypes
+      ? Object.values(state.identification.knownTypes).filter(Boolean).length
+      : 0;
+    const equipmentCount = state.inventoryEquipment.length +
+      (state.player.equipment.weapon ? 1 : 0) +
+      (state.player.equipment.shield ? 1 : 0);
     ui.resultFloor.textContent = `${state.floor}F`;
+    ui.resultTurns.textContent = String(state.turn);
     ui.resultKills.textContent = String(state.kills);
     ui.resultItems.textContent = String(state.itemsUsed);
+    ui.resultIdentified.textContent = String(identifiedCount);
+    ui.resultEquipment.textContent = String(equipmentCount);
     ui.resultOverlay.classList.remove("is-hidden");
     updateUi();
   }
@@ -3043,6 +3074,12 @@
     ui.weapon.textContent = getEquipmentLabel(getEquippedItem("weapon"));
     ui.shield.textContent = getEquipmentLabel(getEquippedItem("shield"));
     ui.satiety.style.color = state.player.satiety <= getHungerConfig().lowThreshold ? "#df6657" : "#7fb7d7";
+    if (state.player.sleepTurns > 0 && state.running) {
+      ui.sleepIndicator.classList.remove("is-hidden");
+      ui.sleepTurnsValue.textContent = String(state.player.sleepTurns);
+    } else {
+      ui.sleepIndicator.classList.add("is-hidden");
+    }
     ui.objective.textContent = getObjective();
     ui.log.innerHTML = state.messages.map((message) => `<div>${escapeHtml(message)}</div>`).join("");
 
@@ -3285,7 +3322,7 @@
         <div class="enemy-row">
           <span class="enemy-icon" style="background:${iconColor};color:#061115;">${escapeHtml(monster.icon || "M")}</span>
           <div>
-            <div class="enemy-name">${escapeHtml(monster.name)}</div>
+            <div class="enemy-name"><span class="behavior-tag">${escapeHtml(getMonsterBehaviorTag(monster))}</span>${escapeHtml(monster.name)}</div>
             <div class="enemy-hp"><span style="--hp: ${hpPercent}%"></span></div>
           </div>
           <span class="enemy-status">${escapeHtml(status)}</span>

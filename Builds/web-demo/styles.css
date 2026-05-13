@@ -227,6 +227,28 @@ button {
   white-space: nowrap;
 }
 
+.sleep-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 4px 10px;
+  border: 1px solid rgba(168, 142, 232, 0.4);
+  border-radius: 6px;
+  background: rgba(168, 142, 232, 0.12);
+  color: #d8c7ff;
+  font-size: 12px;
+}
+
+.sleep-indicator strong {
+  color: #cab6ff;
+}
+
+.sleep-icon {
+  font-weight: 800;
+  font-size: 16px;
+}
+
 .icon-button,
 .console-button,
 .action-button,
@@ -452,6 +474,17 @@ button {
   white-space: nowrap;
 }
 
+.behavior-tag {
+  display: inline-block;
+  margin-right: 4px;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: rgba(246, 240, 223, 0.1);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .enemy-hp {
   position: relative;
   height: 5px;
@@ -565,6 +598,18 @@ button {
   color: rgba(246, 240, 223, 0.42);
   background: rgba(28, 31, 31, 0.76);
   cursor: default;
+}
+
+.unidentified-tag {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(168, 142, 232, 0.2);
+  color: var(--violet);
+  font-size: 11px;
+  font-weight: 700;
+  vertical-align: middle;
 }
 
 .objective,
@@ -949,6 +994,11 @@ button {
 
 .control-note {
   font-size: 12px;
+  line-height: 1.65;
+}
+
+.key-group {
+  display: inline-block;
 }
 
 .result-stats {
