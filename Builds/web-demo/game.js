@@ -309,6 +309,7 @@
   let lastFrame = 0;
   let fpsFrameCount = 0;
   let fpsElapsed = 0;
+  let renderDirty = true;
   let cameraDefaults = null;
   let cameraSession = null;
   const view = {
@@ -338,6 +339,10 @@
     showFps: false,
     fps: 0
   };
+
+  function markRenderDirty() {
+    renderDirty = true;
+  }
 
   function clone(value) {
     return JSON.parse(JSON.stringify(value));
@@ -405,6 +410,16 @@
       inventory[type] = 0;
       return inventory;
     }, {});
+  }
+
+  function buildRenderTiles(width, height, tiles) {
+    const cells = [];
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        cells.push({ x, y, tile: tiles[y * width + x] });
+      }
+    }
+    return cells.sort((a, b) => a.y - b.y || a.x - b.x);
   }
 
   function loadFloor(floorIndex) {
@@ -478,6 +493,7 @@
     state.height = floorData.height;
     state.rooms = floorData.rooms || [];
     state.tiles = floorData.tiles;
+    state.renderTiles = buildRenderTiles(state.width, state.height, state.tiles);
     state.monsters = floorData.monsters;
     state.itemsOnGround = floorData.itemsOnGround;
     state.stairs = floorData.stairs;
@@ -485,6 +501,7 @@
     state.player.y = floorData.playerStart.y;
     state.player.facing = "down";
     resizeCanvas();
+    markRenderDirty();
   }
 
   function generateDungeon(floorIndex) {
@@ -1814,6 +1831,7 @@
     ui.waitButton.disabled = !state.running || state.paused || state.gameOver;
     ui.stairsButton.disabled = !state.running || state.paused || state.gameOver || !isOnStairs();
     ui.pause.setAttribute("aria-label", state.paused ? "resume" : "pause");
+    markRenderDirty();
   }
 
   function buildCameraControls() {
@@ -2108,6 +2126,7 @@
 
     updateCameraOrigin();
     drawMinimap();
+    markRenderDirty();
   }
 
   function updateCameraOrigin() {
@@ -2165,24 +2184,43 @@
 
   function updateAnimations(dt) {
     if (!state) {
-      return;
+      return false;
     }
+    let changed = false;
     state.floaters.forEach((floater) => {
       floater.life -= dt;
       floater.y -= dt * 0.8;
+      changed = true;
     });
-    state.floaters = state.floaters.filter((floater) => floater.life > 0);
-    state.player.hitFlash = Math.max(0, state.player.hitFlash - dt);
+    const nextFloaters = state.floaters.filter((floater) => floater.life > 0);
+    if (nextFloaters.length !== state.floaters.length) {
+      changed = true;
+    }
+    state.floaters = nextFloaters;
+    const nextPlayerHitFlash = Math.max(0, state.player.hitFlash - dt);
+    if (nextPlayerHitFlash !== state.player.hitFlash) {
+      changed = true;
+    }
+    state.player.hitFlash = nextPlayerHitFlash;
     state.monsters.forEach((monster) => {
-      monster.hitFlash = Math.max(0, monster.hitFlash - dt);
+      const nextHitFlash = Math.max(0, monster.hitFlash - dt);
+      if (nextHitFlash !== monster.hitFlash) {
+        changed = true;
+      }
+      monster.hitFlash = nextHitFlash;
     });
+    return changed;
   }
 
   function render() {
+    if (!renderDirty) {
+      return;
+    }
     updateCameraOrigin();
     ctx.clearRect(0, 0, view.width, view.height);
     drawBackground();
     if (!state) {
+      renderDirty = false;
       return;
     }
     drawMap();
@@ -2190,6 +2228,7 @@
     if (state.paused && state.running) {
       drawPaused();
     }
+    renderDirty = false;
   }
 
   function drawBackground() {
@@ -2215,15 +2254,8 @@
   }
 
   function drawTiles() {
-    const cells = [];
-    for (let y = 0; y < state.height; y += 1) {
-      for (let x = 0; x < state.width; x += 1) {
-        cells.push({ x, y, tile: getTile(x, y) });
-      }
-    }
-    cells
-      .sort((a, b) => a.y - b.y || a.x - b.x)
-      .forEach((cell) => drawTile(cell.x, cell.y, cell.tile));
+    const cells = state.renderTiles || [];
+    cells.forEach((cell) => drawTile(cell.x, cell.y, cell.tile));
   }
 
   function drawTile(x, y, tile) {
@@ -2694,7 +2726,9 @@
     }
     const dt = Math.min(0.05, (now - lastFrame) / 1000);
     lastFrame = now;
-    updateAnimations(dt);
+    if (updateAnimations(dt)) {
+      markRenderDirty();
+    }
     updateFps(dt);
     render();
     requestAnimationFrame(frame);
