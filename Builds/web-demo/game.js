@@ -1,7 +1,7 @@
-(() => {
+﻿(() => {
   const CONFIG_URL = "../../Data/config/web_demo_balance.json";
   const DEFAULT_CONFIG = {
-    version: "v0.4.3",
+    version: "v0.5",
     dungeon: {
       maxFloors: 3,
       width: 36,
@@ -12,15 +12,45 @@
         roomWidth: [3, 10],
         roomHeight: [3, 10],
         floorRules: [
-          { monsters: [5, 7], potion: [1, 1], food: [1, 1], strategyItems: [1, 2] },
-          { monsters: [6, 8], potion: [1, 1], food: [1, 1], strategyItems: [2, 2] },
-          { monsters: [7, 9], potion: [1, 1], food: [1, 2], strategyItems: [2, 3] }
+          {
+            monsters: [5, 7],
+            monsterTypes: [
+              { type: "slime", weight: 80 },
+              { type: "goblin_archer", weight: 20 }
+            ],
+            potion: [1, 1],
+            food: [1, 1],
+            strategyItems: [1, 2]
+          },
+          {
+            monsters: [6, 8],
+            monsterTypes: [
+              { type: "slime", weight: 45 },
+              { type: "goblin_archer", weight: 35 },
+              { type: "sleep_mushroom", weight: 20 }
+            ],
+            potion: [1, 1],
+            food: [1, 1],
+            strategyItems: [2, 2]
+          },
+          {
+            monsters: [7, 9],
+            monsterTypes: [
+              { type: "slime", weight: 30 },
+              { type: "goblin_archer", weight: 30 },
+              { type: "sleep_mushroom", weight: 20 },
+              { type: "skeleton_spearman", weight: 20 }
+            ],
+            potion: [1, 1],
+            food: [1, 2],
+            strategyItems: [2, 3]
+          }
         ],
         strategyItemTypes: ["teleport", "sleep", "fireball", "swap"]
       },
       floors: [
         {
-          name: "石苔入口",
+          name: "Stone Moss Entrance",
           rows: [
             "###############",
             "#@fp..#...p...#",
@@ -37,7 +67,7 @@
           ]
         },
         {
-          name: "回廊浅层",
+          name: "Echo Shallows",
           rows: [
             "###############",
             "#@f.#..t..#...#",
@@ -54,7 +84,7 @@
           ]
         },
         {
-          name: "试炼终点",
+          name: "Trial Terminus",
           rows: [
             "###############",
             "#@f.t.#.......#",
@@ -83,13 +113,56 @@
       hp: 6,
       attack: 3
     },
+    monsters: {
+      slime: {
+        id: "slime",
+        name: "Slime",
+        hp: 6,
+        attack: 3,
+        behavior: "melee",
+        icon: "S",
+        color: "#9b5ad7"
+      },
+      goblin_archer: {
+        id: "goblin_archer",
+        name: "Goblin Archer",
+        hp: 5,
+        attack: 2,
+        behavior: "ranged",
+        range: 4,
+        icon: "A",
+        color: "#d86f52"
+      },
+      sleep_mushroom: {
+        id: "sleep_mushroom",
+        name: "Sleep Mushroom",
+        hp: 7,
+        attack: 1,
+        behavior: "sleep_spore",
+        sporeRange: 2,
+        sleepTurns: 2,
+        cooldown: 4,
+        icon: "M",
+        color: "#8e73d6"
+      },
+      skeleton_spearman: {
+        id: "skeleton_spearman",
+        name: "Skeleton Spearman",
+        hp: 8,
+        attack: 3,
+        behavior: "reach_attack",
+        range: 2,
+        icon: "P",
+        color: "#7ec3c3"
+      }
+    },
     potion: {
-      name: "回复药",
+      name: "恢复药",
       heal: 8
     },
     items: {
       potion: {
-        name: "回复药",
+        name: "恢复药",
         key: "H",
         heal: 8
       },
@@ -208,7 +281,7 @@
   };
 
   const ITEM_META = {
-    potion: { label: "回复药", icon: "+", color: "#6fc38b", button: "potionButton" },
+    potion: { label: "恢复药", icon: "+", color: "#6fc38b", button: "potionButton" },
     food: { label: "食物", icon: "F", color: "#f2c85b", button: "foodButton" },
     teleport: { label: "传送卷轴", icon: "T", color: "#7fb7d7", button: "teleportButton" },
     sleep: { label: "睡眠卷轴", icon: "Z", color: "#a88ee8", button: "sleepButton" },
@@ -217,6 +290,7 @@
   };
 
   const ITEM_ORDER = ["potion", "food", "teleport", "sleep", "fireball", "swap"];
+  const HIGH_THREAT_MONSTER_TYPES = new Set(["sleep_mushroom", "skeleton_spearman"]);
 
   const CAMERA_FIELDS = [
     { key: "tileW", label: "tileW", min: 48, max: 160, step: 4, digits: 0 },
@@ -306,6 +380,7 @@
         satiety: config.player.startingSatiety,
         maxSatiety: config.player.maxSatiety,
         facing: "down",
+        sleepTurns: 0,
         hitFlash: 0
       },
       inventory: createEmptyInventory(),
@@ -321,7 +396,7 @@
     };
     state = nextState;
     loadFloor(0);
-    addMessage("第 1 层开始。随机迷宫已生成，注意满腹度。");
+    addMessage("第 1 层开始。随机迷宫已生成，注意饱腹度。");
     return nextState;
   }
 
@@ -444,7 +519,7 @@
     placeStrategyItems(itemsOnGround, occupied, tiles, width, height, randomFromRange(rules.strategyItems), floorIndex);
 
     return {
-      name: `随机迷宫 ${floorIndex + 1}F`,
+      name: `闅忔満杩峰 ${floorIndex + 1}F`,
       width,
       height,
       rooms,
@@ -607,6 +682,60 @@
     return `${x},${y}`;
   }
 
+  function getMonsterCatalog() {
+    return config.monsters || DEFAULT_CONFIG.monsters || {};
+  }
+
+  function getMonsterTemplate(type = "slime") {
+    const catalog = getMonsterCatalog();
+    if (catalog[type]) {
+      return catalog[type];
+    }
+    if (catalog.slime) {
+      return catalog.slime;
+    }
+    return {
+      id: "slime",
+      name: config.monster?.name || "Slime",
+      hp: config.monster?.hp || 6,
+      attack: config.monster?.attack || 3,
+      behavior: "melee",
+      icon: "S",
+      color: "#9b5ad7"
+    };
+  }
+
+  function getMonsterTypeWeights(floorIndex) {
+    const rules = getFloorRules(floorIndex);
+    if (Array.isArray(rules.monsterTypes) && rules.monsterTypes.length > 0) {
+      return rules.monsterTypes;
+    }
+    return [{ type: "slime", weight: 100 }];
+  }
+
+  function pickWeightedMonsterType(floorIndex, roomState = null) {
+    const weights = getMonsterTypeWeights(floorIndex);
+    let pool = weights.filter((entry) => Number(entry.weight) > 0);
+    if (roomState && roomState.highThreatCount >= 1) {
+      const saferPool = pool.filter((entry) => !HIGH_THREAT_MONSTER_TYPES.has(entry.type));
+      if (saferPool.length > 0) {
+        pool = saferPool;
+      }
+    }
+    const total = pool.reduce((sum, entry) => sum + Number(entry.weight), 0);
+    if (total <= 0) {
+      return "slime";
+    }
+    let roll = Math.random() * total;
+    for (const entry of pool) {
+      roll -= Number(entry.weight);
+      if (roll <= 0) {
+        return entry.type;
+      }
+    }
+    return pool[pool.length - 1].type;
+  }
+
   function isRoomCell(room, x, y) {
     return (
       x >= room.x &&
@@ -672,13 +801,21 @@
     return true;
   }
 
-  function placeMonsterInRoom(monsters, room, occupied, tiles, width, floorIndex, stairs) {
+  function placeMonsterInRoom(monsters, room, occupied, tiles, width, floorIndex, stairs, roomState = null) {
     const cell = takeRandomRoomCell(room, tiles, width, occupied, (candidate) => isValidMonsterCell(candidate, room, stairs));
     if (!cell) {
       return false;
     }
+    const type = pickWeightedMonsterType(floorIndex, roomState);
     occupied.add(keyOf(cell.x, cell.y));
-    monsters.push(createMonster(cell.x, cell.y, `${floorIndex}_${monsters.length}`));
+    monsters.push(createMonster(cell.x, cell.y, `${floorIndex}_${monsters.length}`, type));
+    if (roomState) {
+      roomState.count += 1;
+      roomState.types[type] = (roomState.types[type] || 0) + 1;
+      if (HIGH_THREAT_MONSTER_TYPES.has(type)) {
+        roomState.highThreatCount += 1;
+      }
+    }
     return true;
   }
 
@@ -687,11 +824,13 @@
     const spawnRooms = rooms.filter((room) => !room.isStartRoom);
     const largeRoomBonus = spawnRooms.reduce((count, room) => count + (room.width * room.height > 50 ? 1 : 0), 0);
     const targetTotal = Math.max(randomFromRange(rules.monsters), spawnRooms.length + largeRoomBonus);
+    const roomStates = new Map(spawnRooms.map((room) => [room.id, { count: 0, highThreatCount: 0, types: {} }]));
 
     spawnRooms.forEach((room) => {
-      placeMonsterInRoom(monsters, room, occupied, tiles, width, floorIndex, stairs);
+      const roomState = roomStates.get(room.id);
+      placeMonsterInRoom(monsters, room, occupied, tiles, width, floorIndex, stairs, roomState);
       if (room.width * room.height > 50) {
-        placeMonsterInRoom(monsters, room, occupied, tiles, width, floorIndex, stairs);
+        placeMonsterInRoom(monsters, room, occupied, tiles, width, floorIndex, stairs, roomState);
       }
     });
 
@@ -702,7 +841,7 @@
       if (!room) {
         break;
       }
-      placeMonsterInRoom(monsters, room, occupied, tiles, width, floorIndex, stairs);
+      placeMonsterInRoom(monsters, room, occupied, tiles, width, floorIndex, stairs, roomStates.get(room.id));
     }
   }
 
@@ -763,15 +902,25 @@
     return candidates[Math.floor(Math.random() * candidates.length)];
   }
 
-  function createMonster(x, y, index) {
+  function createMonster(x, y, index, type = "slime") {
+    const template = getMonsterTemplate(type);
     return {
       id: `monster_${index}_${Date.now()}`,
-      name: config.monster.name,
+      type: template.id || type,
+      name: template.name,
       x,
       y,
-      hp: config.monster.hp,
-      maxHp: config.monster.hp,
-      attack: config.monster.attack,
+      hp: template.hp,
+      maxHp: template.hp,
+      attack: template.attack,
+      behavior: template.behavior || "melee",
+      range: template.range || 1,
+      sporeRange: template.sporeRange || 0,
+      sporeSleepTurns: template.sleepTurns || 0,
+      cooldown: template.cooldown || 0,
+      cooldownRemaining: 0,
+      icon: template.icon || "S",
+      color: template.color || "#9b5ad7",
       sleepTurns: 0,
       hitFlash: 0
     };
@@ -804,6 +953,28 @@
     return Math.abs(ax - bx) + Math.abs(ay - by);
   }
 
+  function isStraightLine(ax, ay, bx, by) {
+    return ax === bx || ay === by;
+  }
+
+  function hasLineOfSight(ax, ay, bx, by) {
+    if (!isStraightLine(ax, ay, bx, by)) {
+      return false;
+    }
+    const stepX = Math.sign(bx - ax);
+    const stepY = Math.sign(by - ay);
+    let x = ax + stepX;
+    let y = ay + stepY;
+    while (x !== bx || y !== by) {
+      if (!isWalkable(x, y)) {
+        return false;
+      }
+      x += stepX;
+      y += stepY;
+    }
+    return true;
+  }
+
   function addMessage(message) {
     if (!state || !message) {
       return;
@@ -825,8 +996,20 @@
     });
   }
 
+  function maybeSkipPlayerTurnForSleep() {
+    if (!state || state.player.sleepTurns <= 0) {
+      return false;
+    }
+    addMessage(`你仍在睡眠中，还要 ${state.player.sleepTurns} 回合才能行动。`);
+    advanceSleepingTurn();
+    return true;
+  }
+
   function tryMove(dx, dy) {
     if (!canAct()) {
+      return;
+    }
+    if (maybeSkipPlayerTurnForSleep()) {
       return;
     }
     const targetX = state.player.x + dx;
@@ -873,7 +1056,7 @@
     if (monster.hp <= 0) {
       state.monsters = state.monsters.filter((item) => item !== monster);
       state.kills += 1;
-      addMessage(`${monster.name} 被击败。`);
+      addMessage(`${monster.name} 被击败了。`);
     }
   }
 
@@ -909,13 +1092,16 @@
     if (!canAct()) {
       return;
     }
+    if (maybeSkipPlayerTurnForSleep()) {
+      return;
+    }
     if (!hasItem("potion")) {
-      addMessage("没有回复药。");
+      addMessage("没有恢复药。");
       updateUi();
       return;
     }
     if (state.player.hp >= state.player.maxHp) {
-      addMessage("HP 已满，先把回复药留着。");
+      addMessage("HP 已满，先把恢复药留着。");
       updateUi();
       return;
     }
@@ -932,13 +1118,16 @@
     if (!canAct()) {
       return;
     }
+    if (maybeSkipPlayerTurnForSleep()) {
+      return;
+    }
     if (!hasItem("food")) {
       addMessage("没有食物。");
       updateUi();
       return;
     }
     if (state.player.satiety >= state.player.maxSatiety) {
-      addMessage("满腹度已满，食物先留着。");
+      addMessage("饱腹度已满，食物先留着。");
       updateUi();
       return;
     }
@@ -950,12 +1139,15 @@
     if (state.player.satiety > getHungerConfig().lowThreshold) {
       state.lowSatietyWarned = false;
     }
-    addMessage(`吃下食物，满腹度恢复 ${state.player.satiety - before}。`);
+    addMessage(`吃下食物，饱腹度恢复 ${state.player.satiety - before}。`);
     advanceTurn();
   }
 
   function useTeleport() {
     if (!canAct()) {
+      return;
+    }
+    if (maybeSkipPlayerTurnForSleep()) {
       return;
     }
     if (!hasItem("teleport")) {
@@ -1004,6 +1196,9 @@
     if (!canAct()) {
       return;
     }
+    if (maybeSkipPlayerTurnForSleep()) {
+      return;
+    }
     if (!hasItem("sleep")) {
       addMessage("没有睡眠卷轴。");
       updateUi();
@@ -1027,6 +1222,9 @@
 
   function useFireball() {
     if (!canAct()) {
+      return;
+    }
+    if (maybeSkipPlayerTurnForSleep()) {
       return;
     }
     if (!hasItem("fireball")) {
@@ -1058,6 +1256,9 @@
     if (!canAct()) {
       return;
     }
+    if (maybeSkipPlayerTurnForSleep()) {
+      return;
+    }
     if (!hasItem("swap")) {
       addMessage("没有换位杖。");
       updateUi();
@@ -1077,7 +1278,7 @@
     target.x = playerX;
     target.y = playerY;
     pickupItem();
-    addFloater(state.player.x, state.player.y, "换位", "#f08a54");
+    addFloater(state.player.x, state.player.y, "鎹綅", "#f08a54");
     addMessage(`使用换位杖，与 ${target.name} 交换位置。`);
     advanceTurn();
   }
@@ -1101,12 +1302,18 @@
     if (!canAct()) {
       return;
     }
+    if (maybeSkipPlayerTurnForSleep()) {
+      return;
+    }
     addMessage("你停下脚步，观察怪物动向。");
     advanceTurn();
   }
 
   function descendStairs() {
     if (!canAct()) {
+      return;
+    }
+    if (maybeSkipPlayerTurnForSleep()) {
       return;
     }
     if (!isOnStairs()) {
@@ -1122,7 +1329,7 @@
       return;
     }
     if (state.floor >= config.dungeon.maxFloors) {
-      finishGame(true, "你穿过第 3 层终点，完成了最小迷宫挑战。");
+      finishGame(true, "你穿过了第 3 层终点，完成了最小迷宫挑战。");
       return;
     }
 
@@ -1140,6 +1347,26 @@
       return;
     }
     monstersAct();
+    updateUi();
+    if (!state.gameOver) {
+      checkLowHp();
+    }
+  }
+
+  function advanceSleepingTurn() {
+    state.turn += 1;
+    applyHunger();
+    if (state.gameOver) {
+      updateUi();
+      return;
+    }
+    monstersAct();
+    if (!state.gameOver && state.player.sleepTurns > 0) {
+      state.player.sleepTurns -= 1;
+      if (state.player.sleepTurns === 0) {
+        addMessage("你醒来了。");
+      }
+    }
     updateUi();
     if (!state.gameOver) {
       checkLowHp();
@@ -1234,10 +1461,10 @@
         state.player.satiety = Math.max(0, state.player.satiety - hunger.satietyLoss);
         if (state.player.satiety <= hunger.lowThreshold && !state.lowSatietyWarned) {
           state.lowSatietyWarned = true;
-          addMessage("满腹度很低，继续探索会有危险。");
+          addMessage("饱腹度很低，继续探索会有危险。");
         }
         if (state.player.satiety === 0) {
-          addMessage("满腹度归零，接下来饥饿会伤害 HP。");
+          addMessage("饱腹度归零，接下来饥饿会伤害 HP。");
         }
       }
       return;
@@ -1251,7 +1478,7 @@
       addFloater(state.player.x, state.player.y, `-${hunger.starvationDamage}`, "#df6657");
       addMessage(`饥饿造成 ${hunger.starvationDamage} 点伤害。`);
       if (state.player.hp <= 0) {
-        state.deathReason = "因饥饿倒下，HP 归零。";
+        state.deathReason = "你因饥饿倒下，HP 归零。";
         finishGame(false, state.deathReason);
       }
     }
@@ -1267,21 +1494,95 @@
         monster.sleepTurns -= 1;
         continue;
       }
-      if (manhattan(monster.x, monster.y, state.player.x, state.player.y) === 1) {
-        monsterAttack(monster);
-        continue;
+      if (monster.cooldownRemaining > 0) {
+        monster.cooldownRemaining -= 1;
       }
-      moveMonster(monster);
+      actMonster(monster);
     }
   }
 
-  function monsterAttack(monster) {
+  function actMonster(monster) {
+    switch (monster.behavior) {
+      case "ranged":
+        actRanged(monster);
+        return;
+      case "sleep_spore":
+        actSleepMushroom(monster);
+        return;
+      case "reach_attack":
+        actReachAttack(monster);
+        return;
+      default:
+        actMelee(monster);
+    }
+  }
+
+  function actMelee(monster) {
+    if (manhattan(monster.x, monster.y, state.player.x, state.player.y) === 1) {
+      monsterAttack(monster);
+      return;
+    }
+    moveMonster(monster);
+  }
+
+  function actRanged(monster) {
+    const distance = manhattan(monster.x, monster.y, state.player.x, state.player.y);
+    if (distance === 1) {
+      monsterAttack(monster);
+      return;
+    }
+    if (
+      isStraightLine(monster.x, monster.y, state.player.x, state.player.y) &&
+      distance <= monster.range &&
+      hasLineOfSight(monster.x, monster.y, state.player.x, state.player.y)
+    ) {
+      monsterAttack(monster, {
+        message: `${monster.name} 射中了你，造成 ${monster.attack} 点伤害。`
+      });
+      return;
+    }
+    moveMonster(monster);
+  }
+
+  function actSleepMushroom(monster) {
+    const distance = manhattan(monster.x, monster.y, state.player.x, state.player.y);
+    if (monster.cooldownRemaining <= 0 && distance <= monster.sporeRange) {
+      state.player.sleepTurns = Math.max(state.player.sleepTurns, monster.sporeSleepTurns);
+      monster.cooldownRemaining = monster.cooldown;
+      addFloater(state.player.x, state.player.y, "Sleep", "#a88ee8");
+      addMessage(`${monster.name} 释放催眠孢子，你睡着了。`);
+      return;
+    }
+    if (distance === 1) {
+      monsterAttack(monster);
+      return;
+    }
+    moveMonster(monster);
+  }
+
+  function actReachAttack(monster) {
+    const distance = manhattan(monster.x, monster.y, state.player.x, state.player.y);
+    if (
+      isStraightLine(monster.x, monster.y, state.player.x, state.player.y) &&
+      distance >= 1 &&
+      distance <= monster.range &&
+      hasLineOfSight(monster.x, monster.y, state.player.x, state.player.y)
+    ) {
+      monsterAttack(monster, {
+        message: `${monster.name} 用长枪刺中了你，造成 ${monster.attack} 点伤害。`
+      });
+      return;
+    }
+    moveMonster(monster);
+  }
+
+  function monsterAttack(monster, options = {}) {
     state.player.hp = Math.max(0, state.player.hp - monster.attack);
     state.player.hitFlash = 0.25;
     addFloater(state.player.x, state.player.y, `-${monster.attack}`, "#df6657");
-    addMessage(`${monster.name} 攻击你，造成 ${monster.attack} 点伤害。`);
+    addMessage(options.message || `${monster.name} 攻击了你，造成 ${monster.attack} 点伤害。`);
     if (state.player.hp <= 0) {
-      state.deathReason = `被 ${monster.name} 击败，HP 归零。`;
+      state.deathReason = `你被 ${monster.name} 击败，HP 归零。`;
       finishGame(false, state.deathReason);
     }
   }
@@ -1341,9 +1642,106 @@
     return !state.monsters.some((monster) => monster !== self && monster.x === x && monster.y === y);
   }
 
+  function getMonsterThreatStyle(monster) {
+    switch (monster.behavior) {
+      case "ranged":
+        return {
+          fill: "rgba(216, 111, 82, 0.22)",
+          stroke: "rgba(216, 111, 82, 0.5)"
+        };
+      case "sleep_spore":
+        return {
+          fill: "rgba(142, 115, 214, 0.22)",
+          stroke: "rgba(168, 142, 232, 0.56)"
+        };
+      case "reach_attack":
+        return {
+          fill: "rgba(126, 195, 195, 0.2)",
+          stroke: "rgba(126, 195, 195, 0.52)"
+        };
+      default:
+        return {
+          fill: "rgba(223, 102, 87, 0.24)",
+          stroke: "rgba(223, 102, 87, 0.48)"
+        };
+    }
+  }
+
+  function getLinearThreatCells(monster, range) {
+    const cells = [];
+    Object.values(DIRS).forEach((dir) => {
+      for (let step = 1; step <= range; step += 1) {
+        const x = monster.x + dir.x * step;
+        const y = monster.y + dir.y * step;
+        if (!isWalkable(x, y)) {
+          break;
+        }
+        cells.push({ x, y });
+      }
+    });
+    return cells;
+  }
+
+  function getBurstThreatCells(monster, range) {
+    const cells = [];
+    for (let y = monster.y - range; y <= monster.y + range; y += 1) {
+      for (let x = monster.x - range; x <= monster.x + range; x += 1) {
+        if (manhattan(x, y, monster.x, monster.y) > range) {
+          continue;
+        }
+        if (!isWalkable(x, y)) {
+          continue;
+        }
+        cells.push({ x, y });
+      }
+    }
+    return cells;
+  }
+
+  function getMonsterThreatCells(monster) {
+    switch (monster.behavior) {
+      case "ranged":
+        return getLinearThreatCells(monster, monster.range);
+      case "sleep_spore":
+        return getBurstThreatCells(monster, monster.sporeRange);
+      case "reach_attack":
+        return getLinearThreatCells(monster, monster.range);
+      default:
+        return Object.values(DIRS)
+          .map((dir) => ({ x: monster.x + dir.x, y: monster.y + dir.y }))
+          .filter((cell) => isWalkable(cell.x, cell.y));
+    }
+  }
+
+  function getMonsterStatusText(monster) {
+    if (monster.sleepTurns > 0) {
+      return `睡眠 ${monster.sleepTurns}`;
+    }
+    if (monster.behavior === "sleep_spore" && monster.cooldownRemaining > 0) {
+      return `冷却 ${monster.cooldownRemaining}`;
+    }
+    const distance = manhattan(monster.x, monster.y, state.player.x, state.player.y);
+    switch (monster.behavior) {
+      case "ranged":
+        return `${distance}格 / 射程${monster.range}`;
+      case "sleep_spore":
+        return `${distance}格 / 孢子${monster.sporeRange}`;
+      case "reach_attack":
+        return `${distance}格 / 枪距${monster.range}`;
+      default:
+        return `${distance}格 / 近战`;
+    }
+  }
+
+  function getMonsterTurnLabel(monster) {
+    if (monster.sleepTurns > 0) {
+      return "Z";
+    }
+    return monster.icon || "敌";
+  }
   function checkLowHp() {
     if (state.player.hp > 0 && state.player.hp <= 5) {
-      addMessage("HP 很低，考虑使用回复药或拉开距离。");
+      addMessage("HP 很低，考虑使用恢复药或拉开距离。");
       updateUi();
     }
   }
@@ -1359,7 +1757,7 @@
     state.gameOver = true;
     state.victory = victory;
     state.running = false;
-    ui.resultTitle.textContent = victory ? "胜利" : "死亡";
+    ui.resultTitle.textContent = victory ? "鑳滃埄" : "姝讳骸";
     ui.resultCopy.textContent = copy;
     ui.resultFloor.textContent = `${state.floor}F`;
     ui.resultKills.textContent = String(state.kills);
@@ -1375,6 +1773,9 @@
     if (state.gameOver) {
       return state.victory ? "目标完成：你抵达了第 3 层终点。" : "挑战失败：复盘原因，再来一局。";
     }
+    if (state.player.sleepTurns > 0) {
+      return `目标：你正在睡眠中，还要 ${state.player.sleepTurns} 回合才能行动。`;
+    }
     if (isOnStairs()) {
       return state.floor >= config.dungeon.maxFloors ? "目标：按 E / Enter 进入终点并胜利。" : "目标：按 E / Enter 下楼，进入下一层。";
     }
@@ -1382,11 +1783,10 @@
       return "目标：怪物贴身了。移动方向可以攻击，也可以用药或走位。";
     }
     if (state.player.satiety <= getHungerConfig().lowThreshold) {
-      return "目标：满腹度很低。吃食物、减少绕路，尽快决定搜刮还是下楼。";
+      return "目标：饱腹度很低。吃食物、减少绕路，尽快决定搜刮还是下楼。";
     }
-    return "目标：随机探索，搜刮道具，但别让满腹度拖垮你。";
+    return "目标：随机探索，搜刮道具，但别让饱腹度拖垮你。";
   }
-
   function updateUi() {
     if (!state) {
       return;
@@ -1581,7 +1981,7 @@
     minimapCtx.fillStyle = "#f0c85a";
     minimapCtx.fillRect(offsetX + state.stairs.x * cell, offsetY + state.stairs.y * cell, cell, cell);
     state.monsters.forEach((monster) => {
-      minimapCtx.fillStyle = monster.sleepTurns > 0 ? "#a88ee8" : "#df6657";
+      minimapCtx.fillStyle = monster.sleepTurns > 0 ? "#a88ee8" : (monster.color || "#df6657");
       minimapCtx.fillRect(offsetX + monster.x * cell, offsetY + monster.y * cell, cell, cell);
     });
     minimapCtx.fillStyle = "#74b9df";
@@ -1596,11 +1996,19 @@
       .sort((a, b) => manhattan(a.x, a.y, state.player.x, state.player.y) - manhattan(b.x, b.y, state.player.x, state.player.y))
       .slice(0, 6);
     const nextActors = [
-      { label: "你", className: "player" },
-      ...sortedMonsters.slice(0, 3).map((monster) => ({ label: monster.sleepTurns > 0 ? "Z" : "敌", className: "" }))
+      {
+        label: state.player.sleepTurns > 0 ? `Z${state.player.sleepTurns}` : "你",
+        className: "player",
+        style: ""
+      },
+      ...sortedMonsters.slice(0, 3).map((monster) => ({
+        label: getMonsterTurnLabel(monster),
+        className: "",
+        style: `background:${monster.sleepTurns > 0 ? "#605772" : monster.color};color:#061115;`
+      }))
     ];
     ui.turnOrder.innerHTML = nextActors.map((actor) => (
-      `<span class="turn-chip ${actor.className}">${escapeHtml(actor.label)}</span>`
+      `<span class="turn-chip ${actor.className}"${actor.style ? ` style="${actor.style}"` : ""}>${escapeHtml(actor.label)}</span>`
     )).join("");
 
     if (sortedMonsters.length === 0) {
@@ -1610,11 +2018,11 @@
 
     ui.enemyList.innerHTML = sortedMonsters.map((monster) => {
       const hpPercent = Math.max(0, Math.min(100, Math.round((monster.hp / monster.maxHp) * 100)));
-      const distance = manhattan(monster.x, monster.y, state.player.x, state.player.y);
-      const status = monster.sleepTurns > 0 ? `Z ${monster.sleepTurns}` : `${distance}格`;
+      const status = getMonsterStatusText(monster);
+      const iconColor = monster.sleepTurns > 0 ? "#605772" : (monster.color || "#9b5ad7");
       return `
         <div class="enemy-row">
-          <span class="enemy-icon">${monster.sleepTurns > 0 ? "Z" : "S"}</span>
+          <span class="enemy-icon" style="background:${iconColor};color:#061115;">${escapeHtml(monster.icon || "M")}</span>
           <div>
             <div class="enemy-name">${escapeHtml(monster.name)}</div>
             <div class="enemy-hp"><span style="--hp: ${hpPercent}%"></span></div>
@@ -1624,7 +2032,6 @@
       `;
     }).join("");
   }
-
   function itemBlocked(type) {
     if (type === "potion") {
       return state.player.hp >= state.player.maxHp;
@@ -1638,13 +2045,13 @@
   function getItemTitle(type) {
     switch (type) {
       case "potion":
-        return "H：恢复 HP，成功使用后推进回合";
+        return "H锛氭仮澶?HP锛屾垚鍔熶娇鐢ㄥ悗鎺ㄨ繘鍥炲悎";
       case "food":
-        return "F：恢复满腹度，延长探索时间";
+        return "F：恢复饱腹度，延长探索时间";
       case "teleport":
         return "T：随机传送到当前层安全地板";
       case "sleep":
-        return "Z：让 4 格内怪物睡眠 3 回合";
+        return "Z锛氳 4 鏍煎唴鎬墿鐫＄湢 3 鍥炲悎";
       case "fireball":
         return "R：朝当前方向发射火球，未命中不消耗";
       case "swap":
@@ -1881,22 +2288,22 @@
     if (!state.running || state.gameOver) {
       return;
     }
-    const cells = new Set();
     state.monsters.forEach((monster) => {
-      Object.values(DIRS).forEach((dir) => {
-        const x = monster.x + dir.x;
-        const y = monster.y + dir.y;
-        if (isWalkable(x, y)) {
-          cells.add(keyOf(x, y));
+      if (monster.sleepTurns > 0) {
+        return;
+      }
+      const style = getMonsterThreatStyle(monster);
+      const seen = new Set();
+      getMonsterThreatCells(monster).forEach((cell) => {
+        const key = keyOf(cell.x, cell.y);
+        if (seen.has(key)) {
+          return;
         }
+        seen.add(key);
+        drawRangeOverlay(cell.x, cell.y, style.fill, style.stroke);
       });
     });
-    cells.forEach((key) => {
-      const [x, y] = key.split(",").map(Number);
-      drawRangeOverlay(x, y, "rgba(223, 102, 87, 0.24)", "rgba(223, 102, 87, 0.48)");
-    });
   }
-
   function drawRangeOverlay(x, y, fill, stroke) {
     const p = tileToScreen(x, y);
     drawTiltTile(p, fill, stroke, 5);
@@ -1964,28 +2371,37 @@
     const cx = p.x + size * 0.5;
     const footY = p.y + view.rowStep * 0.78;
     const bodyY = footY - size * 0.3;
+    const baseColor = monster.hitFlash > 0 ? "#ffffff" : monster.sleepTurns > 0 ? "#605772" : (monster.color || "#9b5ad7");
+
     ctx.fillStyle = "rgba(0, 0, 0, 0.34)";
     ctx.beginPath();
     ctx.ellipse(cx, footY, size * 0.2, view.rowStep * 0.16, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = monster.hitFlash > 0 ? "#ffffff" : monster.sleepTurns > 0 ? "#605772" : "#9b5ad7";
+
+    ctx.fillStyle = baseColor;
     ctx.beginPath();
     ctx.ellipse(cx, bodyY, size * 0.22, size * 0.18, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = "#21132d";
+
+    ctx.fillStyle = "rgba(255, 255, 255, 0.14)";
     ctx.beginPath();
-    ctx.arc(cx - size * 0.08, bodyY - size * 0.03, size * 0.03, 0, Math.PI * 2);
-    ctx.arc(cx + size * 0.08, bodyY - size * 0.03, size * 0.03, 0, Math.PI * 2);
+    ctx.ellipse(cx, bodyY - size * 0.03, size * 0.13, size * 0.09, 0, 0, Math.PI * 2);
     ctx.fill();
+
+    ctx.fillStyle = monster.sleepTurns > 0 ? "#f3e6ff" : "#111514";
+    ctx.font = `800 ${Math.max(13, size * 0.22)}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(monster.icon || "M", cx, bodyY + 1);
+
     if (monster.sleepTurns > 0) {
       ctx.fillStyle = "#d8c7ff";
       ctx.font = `800 ${Math.max(13, size * 0.24)}px sans-serif`;
-      ctx.textAlign = "center";
       ctx.fillText("Z", cx, bodyY - size * 0.28);
     }
+
     drawBar(cx, bodyY - size * 0.26, size * 0.5, monster.hp, monster.maxHp, "#df6657");
   }
-
   function drawPlayer() {
     const p = tileToScreen(state.player.x, state.player.y);
     const size = view.tileW;
@@ -2100,7 +2516,7 @@
     ctx.fillStyle = "#f7f1e3";
     ctx.font = "700 26px sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText("暂停", view.width / 2, view.height / 2);
+    ctx.fillText("鏆傚仠", view.width / 2, view.height / 2);
   }
 
   function startGame() {
@@ -2298,3 +2714,11 @@
 
   init();
 })();
+
+
+
+
+
+
+
+

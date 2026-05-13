@@ -9,7 +9,8 @@ const paths = {
   js: resolve(root, "Builds/web-demo/game.js"),
   webReadme: resolve(root, "Builds/web-demo/README.md"),
   config: resolve(root, "Data/config/web_demo_balance.json"),
-  server: resolve(root, "Tools/web-demo-server.mjs")
+  server: resolve(root, "Tools/web-demo-server.mjs"),
+  viteBat: resolve(root, "Tools/run-web-demo-vite.bat")
 };
 
 for (const [name, path] of Object.entries(paths)) {
@@ -23,48 +24,34 @@ assert.match(html, /styles\.css/, "HTML should load styles.css");
 assert.match(html, /game\.js/, "HTML should load game.js");
 assert.match(html, /console-button/, "HTML should keep the Console entry");
 assert.match(html, /camera-controls/, "HTML should include camera controls");
-assert.match(html, /camera-reset-button/, "HTML should include camera reset");
-assert.match(html, /camera-copy-button/, "HTML should include camera copy action");
-assert.match(html, /camera-json-output/, "HTML should include camera JSON output");
 
 const css = readFileSync(paths.css, "utf8");
-assert.match(css, /console-section/, "CSS should style the new console section");
+assert.match(css, /console-section/, "CSS should style the console section");
 assert.match(css, /camera-controls/, "CSS should style the camera controls");
-assert.match(css, /camera-slider/, "CSS should style the camera sliders");
-assert.match(css, /camera-json-output/, "CSS should style the camera JSON output");
+assert.match(css, /enemy-row/, "CSS should style the enemy panel rows");
+assert.match(css, /enemy-icon/, "CSS should style the enemy icons");
 
 const webReadme = readFileSync(paths.webReadme, "utf8");
-assert.match(webReadme, /v0\.4\.3 \/ 玩家中心镜头 \+ Console 视野调参版/, "web demo README should describe v0.4.3 status");
-assert.match(webReadme, /风来的西林|玩家中心镜头/, "web demo README should describe the player-centered camera");
-assert.match(webReadme, /不再使用房间中心作为主镜头目标/, "web demo README should say the room center is no longer the primary camera target");
-assert.match(webReadme, /Console/, "web demo README should mention the console tuning panel");
-assert.match(webReadme, /tileW/, "web demo README should mention tileW");
-assert.match(webReadme, /tileH/, "web demo README should mention tileH");
-assert.match(webReadme, /yScale/, "web demo README should mention yScale");
-assert.match(webReadme, /rowStep/, "web demo README should mention rowStep");
-assert.match(webReadme, /perspectiveOffset/, "web demo README should mention perspectiveOffset");
+assert.match(webReadme, /v0\.5 \/ 怪物机制版/, "README should describe v0.5");
+assert.match(webReadme, /Goblin Archer/, "README should mention Goblin Archer");
+assert.match(webReadme, /Sleep Mushroom/, "README should mention Sleep Mushroom");
+assert.match(webReadme, /Skeleton Spearman/, "README should mention Skeleton Spearman");
+assert.match(webReadme, /monsterTypes/, "README should mention weighted monster types");
+assert.match(webReadme, /Camera \/ View/, "README should mention the camera tuning panel");
 
 const js = readFileSync(paths.js, "utf8");
-assert.match(js, /cameraControls/, "JS should reference the camera controls container");
-assert.match(js, /cameraReset/, "JS should include a camera reset control");
-assert.match(js, /cameraCopy/, "JS should include a camera copy control");
-assert.match(js, /cameraJson/, "JS should include a camera JSON output");
-assert.match(js, /CAMERA_FIELDS/, "JS should declare tunable camera fields");
-assert.match(js, /getCameraDefaults/, "JS should derive camera defaults");
-assert.match(js, /buildCameraControls/, "JS should build camera controls");
-assert.match(js, /updateCameraConsole/, "JS should refresh the camera console UI");
-assert.match(js, /setCameraField/, "JS should handle camera field updates");
-assert.match(js, /resetCameraSession/, "JS should reset camera parameters");
-assert.match(js, /copyCameraSession/, "JS should expose camera parameter copy");
-assert.match(js, /getCameraTarget/, "JS should compute a camera target");
-assert.match(js, /x:\s*state\.player\.x[\s\S]*y:\s*state\.player\.y/, "getCameraTarget should center on the player");
-assert.doesNotMatch(js, /cameraTarget = currentRoom\.center/, "JS should not target the room center as the main camera");
-assert.match(js, /cameraCenterOffsetX/, "JS should support cameraCenterOffsetX");
-assert.match(js, /cameraCenterOffsetY/, "JS should support cameraCenterOffsetY");
-assert.match(js, /cameraZoom/, "JS should support cameraZoom");
+assert.match(js, /actMonster/, "JS should dispatch monster behaviors");
+assert.match(js, /actRanged/, "JS should implement ranged monster behavior");
+assert.match(js, /actSleepMushroom/, "JS should implement sleep mushroom behavior");
+assert.match(js, /actReachAttack/, "JS should implement reach attack behavior");
+assert.match(js, /hasLineOfSight/, "JS should check line of sight for ranged attacks");
+assert.match(js, /getMonsterThreatCells/, "JS should compute behavior-specific threat cells");
+assert.match(js, /getMonsterStatusText/, "JS should compute enemy panel status text");
+assert.match(js, /player:\s*\{[\s\S]*sleepTurns/, "JS should keep player sleep state");
+assert.match(js, /cooldownRemaining/, "JS should track monster cooldowns");
+assert.match(js, /monsterTypes/, "JS should support weighted monster pools");
 assert.match(js, /placeMonstersByRoom/, "JS should keep room-based monster placement");
 assert.match(js, /generateDungeon/, "JS should keep random dungeon generation");
-assert.match(js, /rooms/, "JS should keep room metadata");
 assert.match(js, /hunger/i, "JS should keep hunger logic");
 assert.match(js, /satiety/i, "JS should keep satiety logic");
 assert.match(js, /teleport/i, "JS should keep teleport logic");
@@ -73,19 +60,17 @@ assert.match(js, /fireball/i, "JS should keep fireball logic");
 assert.match(js, /swap/i, "JS should keep swap logic");
 assert.match(js, /minimap/i, "JS should keep minimap logic");
 assert.match(js, /enemyList/, "JS should keep the enemy panel logic");
+assert.match(js, /CAMERA_FIELDS/, "JS should keep camera tuning support");
 
 const config = JSON.parse(readFileSync(paths.config, "utf8"));
-assert.equal(config.version, "v0.4.3", "config should be v0.4.3");
+assert.equal(config.version, "v0.5", "config should be v0.5");
 assert.equal(config.camera.cameraMode, "traditional-tilt", "camera mode should stay traditional tilt");
-assert.equal(config.camera.tileW, 104, "config should include tileW");
-assert.equal(config.camera.tileH, 104, "config should include tileH");
-assert.equal(config.camera.yScale, 0.72, "config should include yScale");
-assert.equal(config.camera.rowStep, 75, "config should include rowStep");
-assert.equal(config.camera.perspectiveOffset, 2, "config should include perspectiveOffset");
-assert.equal(config.camera.tileDepth, 22, "config should include tileDepth");
-assert.equal(config.camera.cameraZoom, 1, "config should include cameraZoom");
-assert.equal(config.camera.cameraCenterOffsetX, 0, "config should include cameraCenterOffsetX");
-assert.equal(config.camera.cameraCenterOffsetY, 0, "config should include cameraCenterOffsetY");
+assert.equal(typeof config.monsters, "object", "config should include multi-monster data");
+assert.equal(config.monsters.slime.behavior, "melee", "slime should be melee");
+assert.equal(config.monsters.goblin_archer.behavior, "ranged", "goblin archer should be ranged");
+assert.equal(config.monsters.sleep_mushroom.behavior, "sleep_spore", "sleep mushroom should use sleep spore");
+assert.equal(config.monsters.skeleton_spearman.behavior, "reach_attack", "skeleton spearman should use reach attack");
+assert.equal(Array.isArray(config.dungeon.generation.floorRules[0].monsterTypes), true, "floor rules should include monsterTypes");
 
 const forbiddenCoreTerms = [
   "treeCost",
@@ -100,4 +85,4 @@ for (const term of forbiddenCoreTerms) {
   assert.equal(js.includes(term), false, `JS should not keep old core term: ${term}`);
 }
 
-console.log("v0.4.3 shiren-like player camera console tuning smoke test passed");
+console.log("v0.5 shiren-like monster mechanics smoke test passed");

@@ -1,5 +1,5 @@
 {
-  "version": "v0.4.3",
+  "version": "v0.5",
   "dungeon": {
     "maxFloors": 3,
     "width": 36,
@@ -12,78 +12,40 @@
       "floorRules": [
         {
           "monsters": [5, 7],
+          "monsterTypes": [
+            { "type": "slime", "weight": 80 },
+            { "type": "goblin_archer", "weight": 20 }
+          ],
           "potion": [1, 1],
           "food": [1, 1],
           "strategyItems": [1, 2]
         },
         {
           "monsters": [6, 8],
+          "monsterTypes": [
+            { "type": "slime", "weight": 45 },
+            { "type": "goblin_archer", "weight": 35 },
+            { "type": "sleep_mushroom", "weight": 20 }
+          ],
           "potion": [1, 1],
           "food": [1, 1],
           "strategyItems": [2, 2]
         },
         {
           "monsters": [7, 9],
+          "monsterTypes": [
+            { "type": "slime", "weight": 30 },
+            { "type": "goblin_archer", "weight": 30 },
+            { "type": "sleep_mushroom", "weight": 20 },
+            { "type": "skeleton_spearman", "weight": 20 }
+          ],
           "potion": [1, 1],
           "food": [1, 2],
           "strategyItems": [2, 3]
         }
       ],
       "strategyItemTypes": ["teleport", "sleep", "fireball", "swap"]
-    },
-    "floors": [
-      {
-        "name": "石苔入口",
-        "rows": [
-          "###############",
-          "#@fp..#...p...#",
-          "#.###.#.#####.#",
-          "#...#..t#...#.#",
-          "###.#####.#.#.#",
-          "#.z.m..r..#...#",
-          "#.#####.###.###",
-          "#.....#...#...#",
-          "#.###.###.#.#.#",
-          "#...#..p.x#m#s#",
-          "#.............#",
-          "###############"
-        ]
-      },
-      {
-        "name": "回廊浅层",
-        "rows": [
-          "###############",
-          "#@f.#..t..#...#",
-          "###.#.###.#.#.#",
-          "#...#.#z#...#.#",
-          "#.###.#.#####.#",
-          "#..m..#...m...#",
-          "#.#######.###.#",
-          "#.#.....#...#.#",
-          "#.#.###.###.#.#",
-          "#.r.m.#..p.x#s#",
-          "#.....#.....#.#",
-          "###############"
-        ]
-      },
-      {
-        "name": "试炼终点",
-        "rows": [
-          "###############",
-          "#@f.t.#.......#",
-          "#.###.#.#####.#",
-          "#...#.#..zp.#.#",
-          "###.#.###.#.#.#",
-          "#...#...#.#...#",
-          "#.#####.#.###.#",
-          "#.r.m...#...#.#",
-          "#.#########.#.#",
-          "#...p..x.m..#s#",
-          "#.............#",
-          "###############"
-        ]
-      }
-    ]
+    }
   },
   "player": {
     "maxHp": 20,
@@ -96,13 +58,56 @@
     "hp": 6,
     "attack": 3
   },
+  "monsters": {
+    "slime": {
+      "id": "slime",
+      "name": "Slime",
+      "hp": 6,
+      "attack": 3,
+      "behavior": "melee",
+      "icon": "S",
+      "color": "#9b5ad7"
+    },
+    "goblin_archer": {
+      "id": "goblin_archer",
+      "name": "Goblin Archer",
+      "hp": 5,
+      "attack": 2,
+      "behavior": "ranged",
+      "range": 4,
+      "icon": "A",
+      "color": "#d86f52"
+    },
+    "sleep_mushroom": {
+      "id": "sleep_mushroom",
+      "name": "Sleep Mushroom",
+      "hp": 7,
+      "attack": 1,
+      "behavior": "sleep_spore",
+      "sporeRange": 2,
+      "sleepTurns": 2,
+      "cooldown": 4,
+      "icon": "M",
+      "color": "#8e73d6"
+    },
+    "skeleton_spearman": {
+      "id": "skeleton_spearman",
+      "name": "Skeleton Spearman",
+      "hp": 8,
+      "attack": 3,
+      "behavior": "reach_attack",
+      "range": 2,
+      "icon": "P",
+      "color": "#7ec3c3"
+    }
+  },
   "potion": {
-    "name": "回复药",
+    "name": "恢复药",
     "heal": 8
   },
   "items": {
     "potion": {
-      "name": "回复药",
+      "name": "恢复药",
       "key": "H",
       "heal": 8
     },
