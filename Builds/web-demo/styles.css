@@ -87,10 +87,10 @@ button {
   left: clamp(12px, 1.6vw, 22px);
   display: grid;
   grid-template-columns: 56px minmax(180px, 1fr) auto;
-  align-items: center;
+  align-items: start;
   gap: 12px;
-  width: min(440px, calc(100vw - 24px));
-  min-height: 104px;
+  width: min(500px, calc(100vw - 24px));
+  min-height: 154px;
   padding: 12px;
 }
 
@@ -169,6 +169,58 @@ button {
   display: grid;
   gap: 8px;
   justify-items: end;
+}
+
+.combat-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.stat-chip,
+.equipment-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid rgba(246, 240, 223, 0.12);
+  border-radius: 8px;
+  background: rgba(10, 14, 15, 0.34);
+}
+
+.stat-chip {
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.stat-chip span,
+.equipment-line span {
+  color: var(--muted);
+}
+
+.stat-chip strong {
+  color: #fff7d7;
+}
+
+.equipment-lines {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.equipment-line {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.equipment-line strong {
+  overflow: hidden;
+  color: #fff7d7;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .icon-button,
@@ -329,7 +381,7 @@ button {
 
 .enemy-panel {
   position: absolute;
-  top: 178px;
+  top: 186px;
   right: clamp(12px, 1.6vw, 22px);
   width: 260px;
   max-height: calc(100vh - 330px);
@@ -427,7 +479,7 @@ button {
 }
 
 .objective {
-  top: 134px;
+  top: 186px;
   padding: 10px 12px;
   color: var(--muted);
   font-size: 13px;
@@ -463,9 +515,9 @@ button {
   left: 50%;
   bottom: clamp(16px, 2.4vw, 28px);
   display: grid;
-  grid-template-columns: repeat(8, minmax(72px, 96px));
+  grid-template-columns: repeat(9, minmax(0, 96px));
   gap: 8px;
-  width: min(832px, calc(100vw - 520px));
+  width: min(936px, calc(100vw - 520px));
   justify-content: center;
   pointer-events: auto;
   transform: translateX(-50%);
@@ -853,7 +905,7 @@ button {
   .status-panel {
     grid-template-columns: 48px 1fr auto;
     width: calc(100vw - 20px);
-    min-height: 86px;
+    min-height: 148px;
     padding: 10px;
   }
 
@@ -870,7 +922,7 @@ button {
   }
 
   .minimap-panel {
-    top: 104px;
+    top: 164px;
     right: 10px;
     width: 150px;
     padding: 8px;
@@ -885,7 +937,7 @@ button {
   }
 
   .objective {
-    top: 104px;
+    top: 164px;
     left: 10px;
     right: 170px;
     max-width: none;
@@ -897,7 +949,7 @@ button {
     bottom: 10px;
     left: 10px;
     width: auto;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     transform: none;
   }
 

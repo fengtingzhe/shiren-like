@@ -24,12 +24,32 @@
               <strong id="hp-value">20 / 20</strong>
             </div>
             <div class="stat-line food-pill" aria-label="satiety">
-              <span>满腹</span>
+              <span>饱腹</span>
               <strong id="satiety-value">75 / 100</strong>
             </div>
             <div class="status-meta">
               <span id="turn-value">Turn 0</span>
               <span class="potion-pill">药 <strong id="potion-value">0</strong></span>
+            </div>
+            <div class="combat-stats">
+              <div class="stat-chip">
+                <span>ATK</span>
+                <strong id="attack-value">4</strong>
+              </div>
+              <div class="stat-chip">
+                <span>DEF</span>
+                <strong id="defense-value">0</strong>
+              </div>
+            </div>
+            <div class="equipment-lines" aria-label="equipment">
+              <div class="equipment-line">
+                <span>武器</span>
+                <strong id="weapon-value">-</strong>
+              </div>
+              <div class="equipment-line">
+                <span>盾牌</span>
+                <strong id="shield-value">-</strong>
+              </div>
             </div>
           </div>
           <div class="status-tools">
@@ -59,12 +79,13 @@
         <div id="event-log" class="event-log" aria-live="polite"></div>
 
         <div class="quick-actions" aria-label="quick actions">
-          <button id="potion-button" class="action-button" type="button" title="H：恢复 HP">H 回复药 0</button>
-          <button id="food-button" class="action-button secondary" type="button" title="F：恢复满腹度，延长探索时间">F 食物 0</button>
+          <button id="potion-button" class="action-button" type="button" title="H：恢复 HP">H 恢复药 0</button>
+          <button id="food-button" class="action-button secondary" type="button" title="F：恢复饱腹度">F 食物 0</button>
           <button id="teleport-button" class="action-button secondary" type="button" title="T：随机传送到安全地板">T 传送 0</button>
-          <button id="sleep-button" class="action-button secondary" type="button" title="Z：让附近怪物睡眠 3 回合">Z 睡眠 0</button>
+          <button id="sleep-button" class="action-button secondary" type="button" title="Z：让附近怪物睡眠">Z 睡眠 0</button>
           <button id="fireball-button" class="action-button secondary" type="button" title="R：朝当前方向发射火球">R 火球 0</button>
-          <button id="swap-button" class="action-button secondary" type="button" title="X：与当前方向第一个怪物换位">X 换位 0</button>
+          <button id="swap-button" class="action-button secondary" type="button" title="X：与前方第一只怪物换位">X 换位 0</button>
+          <button id="equip-button" class="action-button secondary command-button" type="button" title="C：装备或替换脚下装备">C 装备</button>
           <button id="wait-button" class="action-button secondary command-button" type="button">. 等待</button>
           <button id="stairs-button" class="action-button secondary command-button" type="button">E 下楼</button>
         </div>
@@ -113,12 +134,12 @@
       <section id="start-overlay" class="overlay">
         <div class="modal">
           <h1>shiren-like</h1>
-          <p>在随机迷宫中活下来。每次有效行动都会推进回合并逐步消耗满腹度，搜刮道具和快速下楼需要取舍。</p>
+          <p>在随机迷宫中活下来。每次有效行动都会推进回合并逐步消耗饱腹度，装备、道具和下楼时机都要取舍。</p>
           <button id="start-button" class="primary-button" type="button">
             <span class="play-icon"></span>
             开始 Demo
           </button>
-          <p class="control-note">WASD / 方向键移动，H 药，F 食物，T 传送，Z 睡眠，R 火球，X 换位，空格等待，E 下楼。</p>
+          <p class="control-note">WASD / 方向键移动，H 药，F 食物，T 传送，Z 睡眠，R 火球，X 换位，C 装备，空格等待，E 下楼。</p>
         </div>
       </section>
 

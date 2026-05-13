@@ -22,46 +22,48 @@ assert.match(html, /shiren-like Web Demo/, "HTML title should identify the demo"
 assert.match(html, /game-canvas/, "HTML should include the main canvas");
 assert.match(html, /console-button/, "HTML should keep the Console entry");
 assert.match(html, /camera-controls/, "HTML should include camera controls");
+assert.match(html, /attack-value/, "HTML should expose ATK");
+assert.match(html, /defense-value/, "HTML should expose DEF");
+assert.match(html, /weapon-value/, "HTML should expose weapon slot");
+assert.match(html, /shield-value/, "HTML should expose shield slot");
+assert.match(html, /equip-button/, "HTML should expose equip action");
 
 const css = readFileSync(paths.css, "utf8");
 assert.match(css, /enemy-row/, "CSS should style the enemy panel rows");
 assert.match(css, /camera-controls/, "CSS should style the camera controls");
+assert.match(css, /combat-stats/, "CSS should style combat stat chips");
+assert.match(css, /equipment-line/, "CSS should style equipment rows");
 
 const webReadme = readFileSync(paths.webReadme, "utf8");
-assert.match(webReadme, /v0\.6 \/ 陷阱与危险地形版/, "README should describe v0.6");
-assert.match(webReadme, /Spike Trap/, "README should mention Spike Trap");
-assert.match(webReadme, /Warp Trap/, "README should mention Warp Trap");
-assert.match(webReadme, /Sleep Trap/, "README should mention Sleep Trap");
-assert.match(webReadme, /Poison Pool/, "README should mention Poison Pool");
-assert.match(webReadme, /小地图当前只显示持续危险地形/, "README should describe the minimap hazard strategy");
+assert.match(webReadme, /v0\.7 \/ 装备与数值成长版/, "README should describe v0.7");
+assert.match(webReadme, /Short Sword/, "README should mention Short Sword");
+assert.match(webReadme, /Iron Shield/, "README should mention Iron Shield");
+assert.match(webReadme, /按 `C`/, "README should describe equip input");
+assert.match(webReadme, /怪物攻击现在会先扣掉防御/, "README should describe defense mitigation");
 
 const js = readFileSync(paths.js, "utf8");
-assert.match(js, /createTrap/, "JS should create trap instances");
-assert.match(js, /createTerrainHazard/, "JS should create terrain hazard instances");
-assert.match(js, /placeHazards/, "JS should place hazards");
-assert.match(js, /placeTraps/, "JS should place traps");
-assert.match(js, /placeTerrainHazards/, "JS should place terrain hazards");
-assert.match(js, /triggerTrapAt/, "JS should trigger traps");
-assert.match(js, /applyTerrainAt/, "JS should apply terrain effects");
-assert.match(js, /findSafeTeleportDestination/, "JS should find safe warp destinations");
-assert.match(js, /trapLookup/, "JS should keep trap lookups");
-assert.match(js, /terrainLookup/, "JS should keep terrain lookups");
-assert.match(js, /sleepTurns/, "JS should keep player sleep state");
-assert.match(js, /getMonsterThreatCells/, "JS should keep monster threat logic");
+assert.match(js, /createEquipmentDrop/, "JS should create equipment drops");
+assert.match(js, /equipmentOnGround/, "JS should track ground equipment");
+assert.match(js, /placeEquipmentDrops/, "JS should place equipment in dungeon generation");
+assert.match(js, /equipGroundItem/, "JS should allow equipping ground equipment");
+assert.match(js, /getPlayerAttack/, "JS should compute derived player attack");
+assert.match(js, /getPlayerDefense/, "JS should compute derived player defense");
+assert.match(js, /KeyC/, "JS should bind equip hotkey");
+assert.match(js, /weapon-value/, "JS should update weapon UI");
+assert.match(js, /shield-value/, "JS should update shield UI");
+assert.match(js, /Math\.max\(1, monster\.attack - getPlayerDefense\(\)\)/, "JS should reduce monster damage by defense");
 assert.match(js, /generateDungeon/, "JS should keep random dungeon generation");
-assert.match(js, /placeMonstersByRoom/, "JS should keep room-based monster placement");
+assert.match(js, /placeHazards/, "JS should keep hazard generation");
 assert.match(js, /CAMERA_FIELDS/, "JS should keep camera tuning support");
 
 const config = JSON.parse(readFileSync(paths.config, "utf8"));
-assert.equal(config.version, "v0.6", "config should be v0.6");
-assert.equal(typeof config.hazards, "object", "config should include hazards");
-assert.equal(config.hazards.traps.spike_trap.damage, 4, "spike trap damage should be configured");
-assert.equal(config.hazards.traps.warp_trap.icon, "?", "warp trap should be configured");
-assert.equal(config.hazards.traps.sleep_trap.sleepTurns, 2, "sleep trap should be configured");
-assert.equal(config.hazards.terrain.poison_pool.damage, 1, "poison pool damage should be configured");
-assert.equal(Array.isArray(config.hazards.floorRules), true, "hazard floor rules should exist");
-assert.equal(Array.isArray(config.hazards.floorRules[0].trapTypes), true, "trapTypes should exist");
-assert.equal(Array.isArray(config.hazards.floorRules[0].terrainTypes), true, "terrainTypes should exist");
+assert.equal(config.version, "v0.7", "config should be v0.7");
+assert.equal(typeof config.equipment, "object", "config should include equipment");
+assert.equal(config.player.defense, 0, "player base defense should exist");
+assert.equal(config.equipment.short_sword.attackBonus, 1, "short sword should grant attack");
+assert.equal(config.equipment.iron_shield.defenseBonus, 2, "iron shield should grant defense");
+assert.equal(Array.isArray(config.dungeon.generation.floorRules[0].equipmentTypes), true, "equipment floor rules should exist");
+assert.equal(Array.isArray(config.hazards.floorRules), true, "hazard floor rules should still exist");
 
 const forbiddenCoreTerms = [
   "treeCost",
@@ -76,4 +78,4 @@ for (const term of forbiddenCoreTerms) {
   assert.equal(js.includes(term), false, `JS should not keep old core term: ${term}`);
 }
 
-console.log("v0.6 shiren-like hazard and terrain smoke test passed");
+console.log("v0.7 shiren-like equipment smoke test passed");

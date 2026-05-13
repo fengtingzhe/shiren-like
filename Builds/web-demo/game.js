@@ -1,7 +1,7 @@
 ﻿(() => {
   const CONFIG_URL = "../../Data/config/web_demo_balance.json";
   const DEFAULT_CONFIG = {
-    version: "v0.6",
+    version: "v0.7",
     dungeon: {
       maxFloors: 3,
       width: 36,
@@ -20,7 +20,14 @@
             ],
             potion: [1, 1],
             food: [1, 1],
-            strategyItems: [1, 2]
+            strategyItems: [1, 2],
+            equipment: [1, 2],
+            equipmentTypes: [
+              { type: "short_sword", weight: 45 },
+              { type: "wooden_shield", weight: 40 },
+              { type: "spear", weight: 10 },
+              { type: "iron_shield", weight: 5 }
+            ]
           },
           {
             monsters: [6, 8],
@@ -31,7 +38,14 @@
             ],
             potion: [1, 1],
             food: [1, 1],
-            strategyItems: [2, 2]
+            strategyItems: [2, 2],
+            equipment: [2, 2],
+            equipmentTypes: [
+              { type: "short_sword", weight: 25 },
+              { type: "wooden_shield", weight: 25 },
+              { type: "spear", weight: 30 },
+              { type: "iron_shield", weight: 20 }
+            ]
           },
           {
             monsters: [7, 9],
@@ -43,7 +57,14 @@
             ],
             potion: [1, 1],
             food: [1, 2],
-            strategyItems: [2, 3]
+            strategyItems: [2, 3],
+            equipment: [2, 3],
+            equipmentTypes: [
+              { type: "short_sword", weight: 15 },
+              { type: "wooden_shield", weight: 15 },
+              { type: "spear", weight: 35 },
+              { type: "iron_shield", weight: 35 }
+            ]
           }
         ],
         strategyItemTypes: ["teleport", "sleep", "fireball", "swap"]
@@ -105,6 +126,7 @@
     player: {
       maxHp: 20,
       attack: 4,
+      defense: 0,
       maxSatiety: 100,
       startingSatiety: 100
     },
@@ -189,6 +211,44 @@
       swap: {
         name: "换位杖",
         key: "X"
+      }
+    },
+    equipment: {
+      short_sword: {
+        id: "short_sword",
+        name: "短剑",
+        slot: "weapon",
+        attackBonus: 1,
+        defenseBonus: 0,
+        icon: "W",
+        color: "#d8d1c3"
+      },
+      spear: {
+        id: "spear",
+        name: "长枪",
+        slot: "weapon",
+        attackBonus: 2,
+        defenseBonus: 0,
+        icon: "L",
+        color: "#cdb292"
+      },
+      wooden_shield: {
+        id: "wooden_shield",
+        name: "木盾",
+        slot: "shield",
+        attackBonus: 0,
+        defenseBonus: 1,
+        icon: "D",
+        color: "#8f6945"
+      },
+      iron_shield: {
+        id: "iron_shield",
+        name: "铁盾",
+        slot: "shield",
+        attackBonus: 0,
+        defenseBonus: 2,
+        icon: "I",
+        color: "#96a7c4"
       }
     },
     hazards: {
@@ -304,6 +364,10 @@
     turn: document.getElementById("turn-value"),
     potion: document.getElementById("potion-value"),
     satiety: document.getElementById("satiety-value"),
+    attack: document.getElementById("attack-value"),
+    defense: document.getElementById("defense-value"),
+    weapon: document.getElementById("weapon-value"),
+    shield: document.getElementById("shield-value"),
     objective: document.getElementById("objective"),
     prompt: document.getElementById("prompt"),
     log: document.getElementById("event-log"),
@@ -313,6 +377,7 @@
     sleepButton: document.getElementById("sleep-button"),
     fireballButton: document.getElementById("fireball-button"),
     swapButton: document.getElementById("swap-button"),
+    equipButton: document.getElementById("equip-button"),
     waitButton: document.getElementById("wait-button"),
     stairsButton: document.getElementById("stairs-button"),
     startOverlay: document.getElementById("start-overlay"),
@@ -360,6 +425,13 @@
     x: "swap"
   };
 
+  const EQUIPMENT_MARKS = {
+    w: "short_sword",
+    l: "spear",
+    d: "wooden_shield",
+    i: "iron_shield"
+  };
+
   const TRAP_MARKS = {
     "^": "spike_trap",
     "?": "warp_trap",
@@ -380,6 +452,7 @@
   };
 
   const ITEM_ORDER = ["potion", "food", "teleport", "sleep", "fireball", "swap"];
+  const EQUIPMENT_SLOTS = ["weapon", "shield"];
   const HIGH_THREAT_MONSTER_TYPES = new Set(["sleep_mushroom", "skeleton_spearman"]);
 
   const CAMERA_FIELDS = [
@@ -469,18 +542,24 @@
       terrainLookup: new Map(),
       monsters: [],
       itemsOnGround: [],
+      equipmentOnGround: [],
       stairs: { x: 1, y: 1 },
       player: {
         x: 1,
         y: 1,
         hp: config.player.maxHp,
         maxHp: config.player.maxHp,
-        attack: config.player.attack,
+        baseAttack: config.player.attack,
+        baseDefense: config.player.defense || 0,
         satiety: config.player.startingSatiety,
         maxSatiety: config.player.maxSatiety,
         facing: "down",
         sleepTurns: 0,
-        hitFlash: 0
+        hitFlash: 0,
+        equipment: {
+          weapon: null,
+          shield: null
+        }
       },
       inventory: createEmptyInventory(),
       turn: 0,
@@ -541,6 +620,31 @@
   function getHazardFloorRules(floorIndex) {
     const rules = getHazardConfig().floorRules || DEFAULT_CONFIG.hazards.floorRules || [];
     return rules[Math.min(floorIndex, rules.length - 1)] || { traps: [0, 0], terrain: [0, 0], trapTypes: [], terrainTypes: [] };
+  }
+
+  function getEquipmentCatalog() {
+    return config.equipment || DEFAULT_CONFIG.equipment || {};
+  }
+
+  function getEquipmentTemplate(type = "short_sword") {
+    const catalog = getEquipmentCatalog();
+    return catalog[type] || DEFAULT_CONFIG.equipment.short_sword;
+  }
+
+  function createEquipmentDrop(type, x, y, index) {
+    const template = getEquipmentTemplate(type);
+    return {
+      id: `equipment_${index}_${Date.now()}`,
+      type: template.id || type,
+      name: template.name,
+      slot: template.slot || "weapon",
+      attackBonus: template.attackBonus || 0,
+      defenseBonus: template.defenseBonus || 0,
+      icon: template.icon || "W",
+      color: template.color || "#d8d1c3",
+      x,
+      y
+    };
   }
 
   function createTrap(x, y, index, type) {
@@ -604,6 +708,7 @@
     const terrainHazards = [];
     const monsters = [];
     const itemsOnGround = [];
+    const equipmentOnGround = [];
     let playerStart = null;
     let stairs = null;
 
@@ -634,6 +739,9 @@
             y
           });
         }
+        if (EQUIPMENT_MARKS[mark]) {
+          equipmentOnGround.push(createEquipmentDrop(EQUIPMENT_MARKS[mark], x, y, `${floorIndex}_${equipmentOnGround.length}`));
+        }
       }
     }
 
@@ -647,6 +755,7 @@
       terrainHazards,
       monsters,
       itemsOnGround,
+      equipmentOnGround,
       stairs: stairs || { x: width - 2, y: height - 2 },
       playerStart: playerStart || { x: 1, y: 1 }
     };
@@ -666,6 +775,7 @@
     rebuildHazardLookups();
     state.monsters = floorData.monsters;
     state.itemsOnGround = floorData.itemsOnGround;
+    state.equipmentOnGround = floorData.equipmentOnGround || [];
     state.stairs = floorData.stairs;
     state.player.x = floorData.playerStart.x;
     state.player.y = floorData.playerStart.y;
@@ -701,11 +811,13 @@
     const terrainHazards = [];
     const monsters = [];
     const itemsOnGround = [];
+    const equipmentOnGround = [];
 
     placeMonstersByRoom(monsters, rooms, occupied, tiles, width, height, floorIndex, stairs);
     placeItems(itemsOnGround, occupied, tiles, width, height, "potion", randomFromRange(rules.potion), floorIndex);
     placeItems(itemsOnGround, occupied, tiles, width, height, "food", randomFromRange(rules.food), floorIndex);
     placeStrategyItems(itemsOnGround, occupied, tiles, width, height, randomFromRange(rules.strategyItems), floorIndex);
+    placeEquipmentDrops(equipmentOnGround, rooms, occupied, tiles, width, height, floorIndex, playerStart, stairs);
     placeHazards(traps, terrainHazards, rooms, occupied, tiles, width, height, floorIndex, playerStart, stairs);
 
     return {
@@ -718,6 +830,7 @@
       terrainHazards,
       monsters,
       itemsOnGround,
+      equipmentOnGround,
       stairs,
       playerStart
     };
@@ -1074,6 +1187,45 @@
     }
   }
 
+  function isValidEquipmentCell(candidate, playerStart, stairs) {
+    if (candidate.x === playerStart.x && candidate.y === playerStart.y) {
+      return false;
+    }
+    if (candidate.x === stairs.x && candidate.y === stairs.y) {
+      return false;
+    }
+    if (manhattan(candidate.x, candidate.y, stairs.x, stairs.y) <= 1) {
+      return false;
+    }
+    return true;
+  }
+
+  function pickWeightedEquipmentType(entries, fallback = "short_sword") {
+    return pickWeightedHazardType(entries, fallback);
+  }
+
+  function placeEquipmentDrops(equipmentOnGround, rooms, occupied, tiles, width, height, floorIndex, playerStart, stairs) {
+    const rules = getFloorRules(floorIndex);
+    const count = randomFromRange(rules.equipment || [0, 0]);
+    const dropRooms = rooms.filter((room) => !room.isStartRoom);
+    for (let index = 0; index < count; index += 1) {
+      let cell = null;
+      if (dropRooms.length > 0) {
+        const room = dropRooms[Math.floor(Math.random() * dropRooms.length)];
+        cell = takeRandomRoomCell(room, tiles, width, occupied, (candidate) => isValidEquipmentCell(candidate, playerStart, stairs));
+      }
+      if (!cell) {
+        cell = takeRandomFloorCell(tiles, width, height, occupied, (candidate) => isValidEquipmentCell(candidate, playerStart, stairs));
+      }
+      if (!cell) {
+        return;
+      }
+      const type = pickWeightedEquipmentType(rules.equipmentTypes, "short_sword");
+      occupied.add(keyOf(cell.x, cell.y));
+      equipmentOnGround.push(createEquipmentDrop(type, cell.x, cell.y, `${floorIndex}_${index}`));
+    }
+  }
+
   function pickWeightedHazardType(entries, fallback) {
     const pool = (entries || []).filter((entry) => Number(entry.weight) > 0);
     if (pool.length === 0) {
@@ -1216,6 +1368,10 @@
     return state.itemsOnGround.find((item) => item.x === x && item.y === y);
   }
 
+  function equipmentAt(x, y) {
+    return state.equipmentOnGround.find((item) => item.x === x && item.y === y);
+  }
+
   function trapAt(x, y) {
     return state.trapLookup.get(keyOf(x, y)) || null;
   }
@@ -1230,6 +1386,54 @@
 
   function isHazardTile(x, y) {
     return Boolean(trapAt(x, y) || terrainAt(x, y));
+  }
+
+  function getEquippedItem(slot) {
+    return state.player.equipment[slot] || null;
+  }
+
+  function getPlayerAttack() {
+    const weaponBonus = getEquippedItem("weapon")?.attackBonus || 0;
+    return state.player.baseAttack + weaponBonus;
+  }
+
+  function getPlayerDefense() {
+    const shieldBonus = getEquippedItem("shield")?.defenseBonus || 0;
+    return state.player.baseDefense + shieldBonus;
+  }
+
+  function formatEquipmentStats(item) {
+    if (!item) {
+      return "";
+    }
+    const parts = [];
+    if ((item.attackBonus || 0) > 0) {
+      parts.push(`ATK+${item.attackBonus}`);
+    }
+    if ((item.defenseBonus || 0) > 0) {
+      parts.push(`DEF+${item.defenseBonus}`);
+    }
+    return parts.join(" / ");
+  }
+
+  function getEquipmentLabel(item) {
+    if (!item) {
+      return "-";
+    }
+    const stats = formatEquipmentStats(item);
+    return stats ? `${item.name} ${stats}` : item.name;
+  }
+
+  function getGroundEquipmentPrompt() {
+    const groundItem = equipmentAt(state.player.x, state.player.y);
+    if (!groundItem) {
+      return "";
+    }
+    const current = getEquippedItem(groundItem.slot);
+    if (!current) {
+      return `脚下有 ${getEquipmentLabel(groundItem)}。按 C 装备。`;
+    }
+    return `脚下有 ${getEquipmentLabel(groundItem)}。按 C 替换当前 ${getEquipmentLabel(current)}。`;
   }
 
   function manhattan(ax, ay, bx, by) {
@@ -1402,10 +1606,11 @@
   }
 
   function attackMonster(monster) {
-    monster.hp -= state.player.attack;
+    const damage = getPlayerAttack();
+    monster.hp -= damage;
     monster.hitFlash = 0.25;
-    addFloater(monster.x, monster.y, `-${state.player.attack}`, "#df6657");
-    addMessage(`你攻击 ${monster.name}，造成 ${state.player.attack} 点伤害。`);
+    addFloater(monster.x, monster.y, `-${damage}`, "#df6657");
+    addMessage(`你攻击 ${monster.name}，造成 ${damage} 点伤害。`);
     if (monster.hp <= 0) {
       state.monsters = state.monsters.filter((item) => item !== monster);
       state.kills += 1;
@@ -1430,6 +1635,35 @@
     state.inventory[item.type] += 1;
     addFloater(state.player.x, state.player.y, `+${ITEM_META[item.type].icon}`, ITEM_META[item.type].color);
     addMessage(`捡到 ${itemLabel(item.type)}。`);
+  }
+
+  function equipGroundItem() {
+    if (!canAct()) {
+      return;
+    }
+    if (maybeSkipPlayerTurnForSleep()) {
+      return;
+    }
+    const groundItem = equipmentAt(state.player.x, state.player.y);
+    if (!groundItem) {
+      addMessage("脚下没有可装备的物品。");
+      updateUi();
+      return;
+    }
+    const current = getEquippedItem(groundItem.slot);
+    state.player.equipment[groundItem.slot] = createEquipmentDrop(groundItem.type, 0, 0, `equipped_${groundItem.slot}`);
+    delete state.player.equipment[groundItem.slot].x;
+    delete state.player.equipment[groundItem.slot].y;
+    if (current) {
+      const dropped = createEquipmentDrop(current.type, state.player.x, state.player.y, `swap_${groundItem.slot}`);
+      state.equipmentOnGround = state.equipmentOnGround.map((item) => (item === groundItem ? dropped : item));
+      addMessage(`你换下 ${getEquipmentLabel(current)}，装备了 ${getEquipmentLabel(groundItem)}。`);
+    } else {
+      state.equipmentOnGround = state.equipmentOnGround.filter((item) => item !== groundItem);
+      addMessage(`你装备了 ${getEquipmentLabel(groundItem)}。`);
+    }
+    addFloater(state.player.x, state.player.y, formatEquipmentStats(groundItem) || "装备", groundItem.color);
+    advanceTurn();
   }
 
   function hasItem(type) {
@@ -1937,7 +2171,7 @@
       hasLineOfSight(monster.x, monster.y, state.player.x, state.player.y)
     ) {
       monsterAttack(monster, {
-        message: `${monster.name} 射中了你，造成 ${monster.attack} 点伤害。`
+        message: (damage) => `${monster.name} 射中了你，造成 ${damage} 点伤害。`
       });
       return;
     }
@@ -1969,7 +2203,7 @@
       hasLineOfSight(monster.x, monster.y, state.player.x, state.player.y)
     ) {
       monsterAttack(monster, {
-        message: `${monster.name} 用长枪刺中了你，造成 ${monster.attack} 点伤害。`
+        message: (damage) => `${monster.name} 用长枪刺中了你，造成 ${damage} 点伤害。`
       });
       return;
     }
@@ -1977,10 +2211,14 @@
   }
 
   function monsterAttack(monster, options = {}) {
-    state.player.hp = Math.max(0, state.player.hp - monster.attack);
+    const damage = Math.max(1, monster.attack - getPlayerDefense());
+    state.player.hp = Math.max(0, state.player.hp - damage);
     state.player.hitFlash = 0.25;
-    addFloater(state.player.x, state.player.y, `-${monster.attack}`, "#df6657");
-    addMessage(options.message || `${monster.name} 攻击了你，造成 ${monster.attack} 点伤害。`);
+    addFloater(state.player.x, state.player.y, `-${damage}`, "#df6657");
+    const message = typeof options.message === "function"
+      ? options.message(damage)
+      : (options.message || `${monster.name} 攻击了你，造成 ${damage} 点伤害。`);
+    addMessage(message);
     if (state.player.hp <= 0) {
       state.deathReason = `你被 ${monster.name} 击败，HP 归零。`;
       finishGame(false, state.deathReason);
@@ -2179,6 +2417,9 @@
     if (state.player.sleepTurns > 0) {
       return `目标：你正在睡眠中，还要 ${state.player.sleepTurns} 回合才能行动。`;
     }
+    if (equipmentAt(state.player.x, state.player.y)) {
+      return "目标：脚下有装备。按 C 装备或替换，决定要不要换数值。";
+    }
     if (isOnStairs()) {
       return state.floor >= config.dungeon.maxFloors ? "目标：按 E / Enter 进入终点并胜利。" : "目标：按 E / Enter 下楼，进入下一层。";
     }
@@ -2200,11 +2441,19 @@
     ui.turn.textContent = `Turn ${state.turn}`;
     ui.potion.textContent = String(state.inventory.potion);
     ui.satiety.textContent = `${state.player.satiety} / ${state.player.maxSatiety}`;
+    ui.attack.textContent = String(getPlayerAttack());
+    ui.defense.textContent = String(getPlayerDefense());
+    ui.weapon.textContent = getEquipmentLabel(getEquippedItem("weapon"));
+    ui.shield.textContent = getEquipmentLabel(getEquippedItem("shield"));
     ui.satiety.style.color = state.player.satiety <= getHungerConfig().lowThreshold ? "#df6657" : "#7fb7d7";
     ui.objective.textContent = getObjective();
     ui.log.innerHTML = state.messages.map((message) => `<div>${escapeHtml(message)}</div>`).join("");
 
-    if (isOnStairs() && state.running && !state.paused) {
+    const groundEquipmentPrompt = getGroundEquipmentPrompt();
+    if (groundEquipmentPrompt && state.running && !state.paused) {
+      ui.prompt.classList.remove("is-hidden");
+      ui.prompt.textContent = groundEquipmentPrompt;
+    } else if (isOnStairs() && state.running && !state.paused) {
       ui.prompt.classList.remove("is-hidden");
       ui.prompt.textContent = state.floor >= config.dungeon.maxFloors ? "楼梯通向终点。按 E / Enter 完成挑战。" : "站在楼梯上。按 E / Enter 进入下一层。";
     } else {
@@ -2216,6 +2465,7 @@
     updateCameraConsole();
     ui.waitButton.disabled = !state.running || state.paused || state.gameOver;
     ui.stairsButton.disabled = !state.running || state.paused || state.gameOver || !isOnStairs();
+    ui.equipButton.disabled = !state.running || state.paused || state.gameOver || !equipmentAt(state.player.x, state.player.y);
     ui.pause.setAttribute("aria-label", state.paused ? "resume" : "pause");
     markRenderDirty();
   }
@@ -2380,6 +2630,10 @@
 
     state.itemsOnGround.forEach((item) => {
       minimapCtx.fillStyle = ITEM_META[item.type].color;
+      minimapCtx.fillRect(offsetX + item.x * cell, offsetY + item.y * cell, cell, cell);
+    });
+    state.equipmentOnGround.forEach((item) => {
+      minimapCtx.fillStyle = item.color || "#d8d1c3";
       minimapCtx.fillRect(offsetX + item.x * cell, offsetY + item.y * cell, cell, cell);
     });
     state.terrainHazards.forEach((terrain) => {
@@ -2737,6 +2991,7 @@
       ...state.traps.map((trap) => ({ kind: "trap", x: trap.x, y: trap.y, draw: () => drawTrap(trap), priority: 0 })),
       { kind: "stairs", x: state.stairs.x, y: state.stairs.y, draw: () => drawStairs(state.stairs.x, state.stairs.y), priority: 0 },
       ...state.itemsOnGround.map((item) => ({ kind: "item", x: item.x, y: item.y, draw: () => drawItem(item), priority: 1 })),
+      ...state.equipmentOnGround.map((item) => ({ kind: "equipment", x: item.x, y: item.y, draw: () => drawEquipment(item), priority: 1 })),
       ...state.monsters.map((monster) => ({ kind: "monster", x: monster.x, y: monster.y, draw: () => drawMonster(monster), priority: 2 })),
       { kind: "player", x: state.player.x, y: state.player.y, draw: drawPlayer, priority: 3 }
     ];
@@ -2835,6 +3090,39 @@
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(meta.icon, cx, cy + 1);
+  }
+
+  function drawEquipment(item) {
+    const p = tileToScreen(item.x, item.y);
+    const size = view.tileW;
+    const cx = p.x + size * 0.5;
+    const cy = p.y + view.rowStep * 0.45;
+    drawTiltTile(p, `${item.color}24`, `${item.color}88`, 10);
+    ctx.fillStyle = `${item.color}2f`;
+    ctx.beginPath();
+    ctx.ellipse(cx, p.y + view.rowStep * 0.8, size * 0.16, view.rowStep * 0.12, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = item.color;
+    ctx.lineWidth = 3;
+    if (item.slot === "weapon") {
+      ctx.beginPath();
+      ctx.moveTo(cx - size * 0.12, cy + size * 0.12);
+      ctx.lineTo(cx + size * 0.11, cy - size * 0.11);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx - size * 0.04, cy + size * 0.13);
+      ctx.lineTo(cx - size * 0.14, cy + size * 0.23);
+      ctx.stroke();
+    } else {
+      ctx.beginPath();
+      ctx.roundRect(cx - size * 0.12, cy - size * 0.12, size * 0.24, size * 0.3, 8);
+      ctx.stroke();
+    }
+    ctx.fillStyle = "#f6f0df";
+    ctx.font = `800 ${Math.max(12, size * 0.18)}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(item.icon || "E", cx, cy + 1);
   }
 
   function drawMonster(monster) {
@@ -3058,6 +3346,7 @@
     ui.sleepButton.addEventListener("click", useSleepScroll);
     ui.fireballButton.addEventListener("click", useFireball);
     ui.swapButton.addEventListener("click", useSwapStaff);
+    ui.equipButton.addEventListener("click", equipGroundItem);
     ui.waitButton.addEventListener("click", waitTurn);
     ui.stairsButton.addEventListener("click", descendStairs);
     ui.start.addEventListener("click", startGame);
@@ -3134,6 +3423,10 @@
     }
     if (code === "KeyX") {
       useSwapStaff();
+      return true;
+    }
+    if (code === "KeyC") {
+      equipGroundItem();
       return true;
     }
     if (code === "Space" || code === "Period") {

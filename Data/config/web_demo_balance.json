@@ -1,5 +1,5 @@
 {
-  "version": "v0.6",
+  "version": "v0.7",
   "dungeon": {
     "maxFloors": 3,
     "width": 36,
@@ -18,7 +18,14 @@
           ],
           "potion": [1, 1],
           "food": [1, 1],
-          "strategyItems": [1, 2]
+          "strategyItems": [1, 2],
+          "equipment": [1, 2],
+          "equipmentTypes": [
+            { "type": "short_sword", "weight": 45 },
+            { "type": "wooden_shield", "weight": 40 },
+            { "type": "spear", "weight": 10 },
+            { "type": "iron_shield", "weight": 5 }
+          ]
         },
         {
           "monsters": [6, 8],
@@ -29,7 +36,14 @@
           ],
           "potion": [1, 1],
           "food": [1, 1],
-          "strategyItems": [2, 2]
+          "strategyItems": [2, 2],
+          "equipment": [2, 2],
+          "equipmentTypes": [
+            { "type": "short_sword", "weight": 25 },
+            { "type": "wooden_shield", "weight": 25 },
+            { "type": "spear", "weight": 30 },
+            { "type": "iron_shield", "weight": 20 }
+          ]
         },
         {
           "monsters": [7, 9],
@@ -41,7 +55,14 @@
           ],
           "potion": [1, 1],
           "food": [1, 2],
-          "strategyItems": [2, 3]
+          "strategyItems": [2, 3],
+          "equipment": [2, 3],
+          "equipmentTypes": [
+            { "type": "short_sword", "weight": 15 },
+            { "type": "wooden_shield", "weight": 15 },
+            { "type": "spear", "weight": 35 },
+            { "type": "iron_shield", "weight": 35 }
+          ]
         }
       ],
       "strategyItemTypes": ["teleport", "sleep", "fireball", "swap"]
@@ -50,6 +71,7 @@
   "player": {
     "maxHp": 20,
     "attack": 4,
+    "defense": 0,
     "maxSatiety": 100,
     "startingSatiety": 100
   },
@@ -130,6 +152,44 @@
     "swap": {
       "name": "换位杖",
       "key": "X"
+    }
+  },
+  "equipment": {
+    "short_sword": {
+      "id": "short_sword",
+      "name": "短剑",
+      "slot": "weapon",
+      "attackBonus": 1,
+      "defenseBonus": 0,
+      "icon": "W",
+      "color": "#d8d1c3"
+    },
+    "spear": {
+      "id": "spear",
+      "name": "长枪",
+      "slot": "weapon",
+      "attackBonus": 2,
+      "defenseBonus": 0,
+      "icon": "L",
+      "color": "#cdb292"
+    },
+    "wooden_shield": {
+      "id": "wooden_shield",
+      "name": "木盾",
+      "slot": "shield",
+      "attackBonus": 0,
+      "defenseBonus": 1,
+      "icon": "D",
+      "color": "#8f6945"
+    },
+    "iron_shield": {
+      "id": "iron_shield",
+      "name": "铁盾",
+      "slot": "shield",
+      "attackBonus": 0,
+      "defenseBonus": 2,
+      "icon": "I",
+      "color": "#96a7c4"
     }
   },
   "hazards": {
