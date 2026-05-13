@@ -2,24 +2,27 @@
 
 ## 任务名称
 
-`Web Demo v0.7.1 / 装备池补全与平衡版`
+`Web Demo v0.8 / 背包与投掷版`
 
 ## 背景
 
-`v0.7` 已经接入了最小装备系统，但装备池偏小，成长曲线不完整。这一轮只做补丁版：补齐高级武器和高级盾牌，并把装备替换与掉落逻辑稳定下来。
+`v0.7.1` 已经补齐了装备成长，但玩家仍然可以无限持有物品。这一轮的目标是加入最小背包压力，并让背包里的物品可以沿当前朝向投掷出去，形成新的取舍和战术入口。
 
 ## 本轮目标
 
-- [x] 保留 `v0.7` 的装备系统、怪物、陷阱、危险地形、镜头和 Console
-- [x] 新增 `flame_sword / 火焰剑`
-- [x] 新增 `guard_shield / 守护盾`
-- [x] 微调 `1F / 2F / 3F` 装备掉落权重
-- [x] 收紧装备替换与旧装备掉落逻辑
-- [x] 保证装备不与怪物、道具、陷阱、危险地形、楼梯重叠
-- [x] HUD、README、配置、smoke test、任务记录同步到 `v0.7.1`
+- [x] 保留 `v0.7.1` 的装备、怪物、陷阱、危险地形、镜头和 Console
+- [x] 加入背包容量
+- [x] 加入地面物品拾取取舍
+- [x] 加入背包面板 UI
+- [x] 支持从背包使用消耗品
+- [x] 支持从背包装备备用装备
+- [x] 支持从背包投掷物品
+- [x] README、配置、smoke test、任务记录同步到 `v0.8`
 
 ## 本轮范围
 
+- `D:\work\shiren-like\Builds\web-demo\index.html`
+- `D:\work\shiren-like\Builds\web-demo\styles.css`
 - `D:\work\shiren-like\Builds\web-demo\game.js`
 - `D:\work\shiren-like\Builds\web-demo\README.md`
 - `D:\work\shiren-like\Data\config\web_demo_balance.json`
@@ -36,11 +39,9 @@
 - 合成
 - 诅咒
 - 耐久
-- 背包容量
-- 投掷
+- 壶
 - 商店
 - 怪物屋
-- 壶
 - 据点
 - Boss
 - Godot
@@ -51,15 +52,15 @@
 - [x] `node --check D:\work\shiren-like\Tools\web-demo-server.mjs`
 - [x] `node D:\work\shiren-like\Tests\web-demo-smoke.mjs`
 - [x] 页面正常启动，无前端报错
-- [x] 地图中仍会生成武器和盾牌
-- [x] `3F` 有机会生成火焰剑和守护盾
-- [x] 装备火焰剑后 `ATK` 正确增加
-- [x] 装备守护盾后 `DEF` 正确增加
-- [x] 按 `C` 仍能稳定装备或替换
-- [x] 旧装备掉落逻辑稳定，无错误重叠
+- [x] HUD 或面板显示背包容量
+- [x] 背包满时不能继续拾取新物品
+- [x] 同类型消耗品可堆叠并正确占格
+- [x] 背包面板可显示物品、数量和装备数值
+- [x] 背包中可以使用消耗品
+- [x] 背包中可以投掷物品
 
 ## 下一轮建议
 
 ```text
-Web Demo v0.8 / 背包与投掷版
+Web Demo v0.9 / 未鉴定与道具风险版
 ```

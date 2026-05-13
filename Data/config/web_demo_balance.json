@@ -1,5 +1,5 @@
 {
-  "version": "v0.7.1",
+  "version": "v0.8",
   "dungeon": {
     "maxFloors": 3,
     "width": 36,
@@ -210,6 +210,26 @@
       "defenseBonus": 3,
       "icon": "G",
       "color": "#6aa0d8"
+    }
+  },
+  "inventorySystem": {
+    "enabled": true,
+    "capacity": 8,
+    "stackConsumables": true,
+    "equipmentTakesSlot": true,
+    "throwRange": 5,
+    "throwBaseDamage": 1
+  },
+  "throwing": {
+    "maxRange": 5,
+    "defaultDamage": 2,
+    "effects": {
+      "food": { "damage": 1 },
+      "potion": { "damage": 2 },
+      "teleport": { "damage": 2 },
+      "sleep": { "damage": 0, "sleepTurns": 3 },
+      "fireball": { "damage": 3 },
+      "swap": { "damage": 2 }
     }
   },
   "hazards": {

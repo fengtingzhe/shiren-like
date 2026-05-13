@@ -165,6 +165,10 @@ button {
   color: var(--gold);
 }
 
+.bag-pill strong {
+  color: var(--teal);
+}
+
 .status-tools {
   display: grid;
   gap: 8px;
@@ -468,6 +472,99 @@ button {
 .enemy-status {
   color: var(--muted);
   font-size: 12px;
+}
+
+.inventory-panel {
+  position: absolute;
+  top: 186px;
+  left: clamp(12px, 1.6vw, 22px);
+  z-index: 3;
+  width: min(420px, calc(100vw - 24px));
+  max-height: min(420px, calc(100vh - 240px));
+  padding: 12px;
+  overflow: auto;
+  pointer-events: auto;
+}
+
+.inventory-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.inventory-capacity {
+  color: var(--teal);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.inventory-list {
+  display: grid;
+  gap: 8px;
+}
+
+.inventory-empty {
+  padding: 12px;
+  border: 1px solid rgba(246, 240, 223, 0.1);
+  border-radius: 8px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 13px;
+}
+
+.inventory-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid rgba(246, 240, 223, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.inventory-main {
+  min-width: 0;
+}
+
+.inventory-name {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inventory-sub {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.inventory-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.inventory-action {
+  min-width: 52px;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 6px;
+  color: var(--ink);
+  background: rgba(20, 26, 28, 0.88);
+  cursor: pointer;
+}
+
+.inventory-action:disabled {
+  color: rgba(246, 240, 223, 0.42);
+  background: rgba(28, 31, 31, 0.76);
+  cursor: default;
 }
 
 .objective,
@@ -934,6 +1031,14 @@ button {
 
   .enemy-panel {
     display: none;
+  }
+
+  .inventory-panel {
+    top: 254px;
+    right: 10px;
+    left: 10px;
+    width: auto;
+    max-height: calc(100vh - 356px);
   }
 
   .objective {

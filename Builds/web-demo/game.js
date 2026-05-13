@@ -1,7 +1,7 @@
 ﻿(() => {
   const CONFIG_URL = "../../Data/config/web_demo_balance.json";
   const DEFAULT_CONFIG = {
-    version: "v0.7.1",
+    version: "v0.8",
     dungeon: {
       maxFloors: 3,
       width: 36,
@@ -271,6 +271,26 @@
         color: "#6aa0d8"
       }
     },
+    inventorySystem: {
+      enabled: true,
+      capacity: 8,
+      stackConsumables: true,
+      equipmentTakesSlot: true,
+      throwRange: 5,
+      throwBaseDamage: 1
+    },
+    throwing: {
+      maxRange: 5,
+      defaultDamage: 2,
+      effects: {
+        food: { damage: 1 },
+        potion: { damage: 2 },
+        teleport: { damage: 2 },
+        sleep: { damage: 0, sleepTurns: 3 },
+        fireball: { damage: 3 },
+        swap: { damage: 2 }
+      }
+    },
     hazards: {
       traps: {
         spike_trap: {
@@ -383,6 +403,7 @@
     floor: document.getElementById("floor-value"),
     turn: document.getElementById("turn-value"),
     potion: document.getElementById("potion-value"),
+    inventoryValue: document.getElementById("inventory-value"),
     satiety: document.getElementById("satiety-value"),
     attack: document.getElementById("attack-value"),
     defense: document.getElementById("defense-value"),
@@ -410,6 +431,11 @@
     resultItems: document.getElementById("result-items"),
     restart: document.getElementById("restart-button"),
     pause: document.getElementById("pause-button"),
+    inventoryButton: document.getElementById("inventory-button"),
+    inventoryPanel: document.getElementById("inventory-panel"),
+    inventoryClose: document.getElementById("inventory-close-button"),
+    inventoryList: document.getElementById("inventory-list"),
+    inventoryCapacity: document.getElementById("inventory-capacity"),
     consoleButton: document.getElementById("console-button"),
     consoleClose: document.getElementById("console-close-button"),
     consolePanel: document.getElementById("console-panel"),
@@ -495,6 +521,7 @@
   let renderDirty = true;
   let cameraDefaults = null;
   let cameraSession = null;
+  let inventoryPanelOpen = false;
   const view = {
     width: 0,
     height: 0,
@@ -582,6 +609,7 @@
         }
       },
       inventory: createEmptyInventory(),
+      inventoryEquipment: [],
       turn: 0,
       hungerCounter: 0,
       starvationCounter: 0,
@@ -603,6 +631,92 @@
       inventory[type] = 0;
       return inventory;
     }, {});
+  }
+
+  function getInventoryConfig() {
+    return config.inventorySystem || DEFAULT_CONFIG.inventorySystem;
+  }
+
+  function getThrowingConfig() {
+    return config.throwing || DEFAULT_CONFIG.throwing;
+  }
+
+  function getInventoryCapacity() {
+    return Number(getInventoryConfig().capacity) || 8;
+  }
+
+  function getInventoryUsedSlots() {
+    const consumableSlots = ITEM_ORDER.reduce((count, type) => count + (state.inventory[type] > 0 ? 1 : 0), 0);
+    return consumableSlots + state.inventoryEquipment.length;
+  }
+
+  function hasInventorySpace(kind, type = null) {
+    const inventoryConfig = getInventoryConfig();
+    if (!inventoryConfig || !inventoryConfig.enabled) {
+      return true;
+    }
+    if (kind === "consumable") {
+      if (inventoryConfig.stackConsumables !== false && state.inventory[type] > 0) {
+        return true;
+      }
+      return getInventoryUsedSlots() < getInventoryCapacity();
+    }
+    if (kind === "equipment") {
+      if (inventoryConfig.equipmentTakesSlot === false) {
+        return true;
+      }
+      return getInventoryUsedSlots() < getInventoryCapacity();
+    }
+    return getInventoryUsedSlots() < getInventoryCapacity();
+  }
+
+  function addItemToInventory(entry) {
+    if (!entry) {
+      return false;
+    }
+    if (entry.kind === "consumable") {
+      if (!hasInventorySpace("consumable", entry.type)) {
+        return false;
+      }
+      state.inventory[entry.type] += entry.count || 1;
+      return true;
+    }
+    if (entry.kind === "equipment") {
+      if (!hasInventorySpace("equipment", entry.type)) {
+        return false;
+      }
+      const source = entry.item || entry;
+      const inventoryItem = createEquipmentDrop(source.type, 0, 0, `inventory_${source.type}`);
+      delete inventoryItem.x;
+      delete inventoryItem.y;
+      state.inventoryEquipment.push(inventoryItem);
+      return true;
+    }
+    return false;
+  }
+
+  function removeItemFromInventory(kind, reference) {
+    if (kind === "consumable") {
+      if (!state.inventory[reference]) {
+        return null;
+      }
+      state.inventory[reference] -= 1;
+      return {
+        kind: "consumable",
+        type: reference,
+        name: itemLabel(reference),
+        icon: ITEM_META[reference].icon,
+        count: 1
+      };
+    }
+    if (kind === "equipment") {
+      const index = state.inventoryEquipment.findIndex((item) => item.id === reference);
+      if (index < 0) {
+        return null;
+      }
+      return state.inventoryEquipment.splice(index, 1)[0];
+    }
+    return null;
   }
 
   function buildRenderTiles(width, height, tiles) {
@@ -1460,10 +1574,11 @@
       return "";
     }
     const current = getEquippedItem(groundItem.slot);
+    const pickupHint = hasInventorySpace("equipment", groundItem.type) ? "按 G 入包。" : "背包已满，不能入包。";
     if (!current) {
-      return `脚下有 ${getEquipmentLabel(groundItem)}。按 C 装备。`;
+      return `脚下有 ${getEquipmentLabel(groundItem)}。按 C 装备，${pickupHint}`;
     }
-    return `脚下有 ${getEquipmentLabel(groundItem)}。按 C 替换当前 ${getEquipmentLabel(current)}。`;
+    return `脚下有 ${getEquipmentLabel(groundItem)}。按 C 替换当前 ${getEquipmentLabel(current)}，${pickupHint}`;
   }
 
   function canPlaceEquipmentAt(x, y, ignoreItem = null) {
@@ -1706,10 +1821,37 @@
     if (!item) {
       return;
     }
+    if (!addItemToInventory({ kind: "consumable", type: item.type, count: 1 })) {
+      addMessage(`背包已满，无法拾取${itemLabel(item.type)}。`);
+      return;
+    }
     state.itemsOnGround = state.itemsOnGround.filter((groundItem) => groundItem !== item);
-    state.inventory[item.type] += 1;
     addFloater(state.player.x, state.player.y, `+${ITEM_META[item.type].icon}`, ITEM_META[item.type].color);
-    addMessage(`捡到 ${itemLabel(item.type)}。`);
+    addMessage(`你拾取了${itemLabel(item.type)}。`);
+  }
+
+  function pickupGroundEquipmentToInventory() {
+    if (!canAct()) {
+      return;
+    }
+    if (maybeSkipPlayerTurnForSleep()) {
+      return;
+    }
+    const groundItem = findEquipmentAtPlayer();
+    if (!groundItem) {
+      addMessage("脚下没有可收进背包的装备。");
+      updateUi();
+      return;
+    }
+    if (!addItemToInventory({ kind: "equipment", item: groundItem })) {
+      addMessage(`背包已满，无法拾取${groundItem.name}。`);
+      updateUi();
+      return;
+    }
+    state.equipmentOnGround = state.equipmentOnGround.filter((item) => item !== groundItem);
+    addFloater(state.player.x, state.player.y, "入包", groundItem.color);
+    addMessage(`你把${groundItem.name}放进了背包。`);
+    advanceTurn();
   }
 
   function equipGroundItem() {
@@ -1745,12 +1887,246 @@
     advanceTurn();
   }
 
+  function getInventoryEntries() {
+    const consumables = ITEM_ORDER
+      .filter((type) => state.inventory[type] > 0)
+      .map((type) => ({
+        key: `consumable:${type}`,
+        kind: "consumable",
+        type,
+        name: itemLabel(type),
+        count: state.inventory[type],
+        summary: `x${state.inventory[type]}`,
+        icon: ITEM_META[type].icon
+      }));
+    const equipments = state.inventoryEquipment.map((item) => ({
+      key: `equipment:${item.id}`,
+      kind: "equipment",
+      id: item.id,
+      type: item.type,
+      slot: item.slot,
+      name: item.name,
+      summary: `+${getEquipmentBonusValue(item)}`,
+      icon: item.icon
+    }));
+    return [...consumables, ...equipments];
+  }
+
+  function setInventoryOpen(open) {
+    inventoryPanelOpen = open;
+    ui.inventoryPanel.classList.toggle("is-hidden", !open);
+    ui.inventoryPanel.setAttribute("aria-hidden", open ? "false" : "true");
+    ui.inventoryButton.setAttribute("aria-expanded", open ? "true" : "false");
+    markRenderDirty();
+  }
+
+  function toggleInventoryPanel() {
+    if (!state || state.gameOver) {
+      return;
+    }
+    setInventoryOpen(!inventoryPanelOpen);
+    updateUi();
+  }
+
+  function renderInventoryPanel() {
+    if (!ui.inventoryList || !ui.inventoryCapacity) {
+      return;
+    }
+    ui.inventoryCapacity.textContent = `${getInventoryUsedSlots()} / ${getInventoryCapacity()}`;
+    const entries = getInventoryEntries();
+    if (entries.length === 0) {
+      ui.inventoryList.innerHTML = '<div class="inventory-empty">背包是空的。</div>';
+      return;
+    }
+    ui.inventoryList.innerHTML = entries.map((entry, index) => {
+      const actions = entry.kind === "consumable"
+        ? `
+          <button class="inventory-action" type="button" data-inventory-action="use" data-kind="consumable" data-type="${escapeHtml(entry.type)}">U 使用</button>
+          <button class="inventory-action" type="button" data-inventory-action="throw" data-kind="consumable" data-type="${escapeHtml(entry.type)}">T 投掷</button>
+        `
+        : `
+          <button class="inventory-action" type="button" data-inventory-action="equip" data-kind="equipment" data-id="${escapeHtml(entry.id)}">E 装备</button>
+          <button class="inventory-action" type="button" data-inventory-action="throw" data-kind="equipment" data-id="${escapeHtml(entry.id)}">T 投掷</button>
+        `;
+      return `
+        <div class="inventory-row">
+          <div class="inventory-main">
+            <div class="inventory-name">${index + 1}. ${escapeHtml(entry.name)}</div>
+            <div class="inventory-sub">${escapeHtml(entry.summary)}</div>
+          </div>
+          <div class="inventory-actions">${actions}</div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function useInventoryEntry(type) {
+    switch (type) {
+      case "potion":
+        usePotion();
+        return;
+      case "food":
+        useFood();
+        return;
+      case "teleport":
+        useTeleport();
+        return;
+      case "sleep":
+        useSleepScroll();
+        return;
+      case "fireball":
+        useFireball();
+        return;
+      case "swap":
+        useSwapStaff();
+        return;
+      default:
+        updateUi();
+    }
+  }
+
+  function equipInventoryItem(id) {
+    if (!canAct()) {
+      return;
+    }
+    if (maybeSkipPlayerTurnForSleep()) {
+      return;
+    }
+    const inventoryItem = state.inventoryEquipment.find((item) => item.id === id);
+    if (!inventoryItem) {
+      addMessage("背包里没有这件装备。");
+      updateUi();
+      return;
+    }
+    const current = getEquippedItem(inventoryItem.slot);
+    const previousValue = inventoryItem.slot === "weapon" ? getPlayerAttack() : getPlayerDefense();
+    const equippedItem = removeItemFromInventory("equipment", id);
+    state.player.equipment[inventoryItem.slot] = createEquipmentDrop(equippedItem.type, 0, 0, `equipped_inventory_${inventoryItem.slot}`);
+    delete state.player.equipment[inventoryItem.slot].x;
+    delete state.player.equipment[inventoryItem.slot].y;
+    addMessage(buildEquipmentEquipMessage(equippedItem, previousValue));
+    if (current) {
+      if (addItemToInventory({ kind: "equipment", item: current })) {
+        addMessage(`你把${current.name}收回了背包。`);
+      } else {
+        const dropCell = findSafeEquipmentDropCell();
+        if (dropCell) {
+          state.equipmentOnGround.push(createEquipmentDrop(current.type, dropCell.x, dropCell.y, `inventory_swap_${inventoryItem.slot}`));
+          addMessage(dropCell.kind === "feet" ? `你卸下的${current.name}掉在了脚下。` : `你卸下的${current.name}掉在了旁边。`);
+        } else {
+          addMessage("附近没有可放置的位置，旧装备消失了。");
+        }
+      }
+    }
+    addFloater(state.player.x, state.player.y, `+${getEquipmentBonusValue(equippedItem)}`, equippedItem.color);
+    advanceTurn();
+  }
+
+  function resolveThrowPath(start, direction, maxRange) {
+    let x = start.x;
+    let y = start.y;
+    let lastFloor = null;
+    for (let step = 0; step < maxRange; step += 1) {
+      if (!isWalkable(x, y)) {
+        return { hitMonster: null, lastFloor, blocked: true };
+      }
+      lastFloor = { x, y };
+      const monster = monsterAt(x, y);
+      if (monster) {
+        return { hitMonster: monster, lastFloor, blocked: false };
+      }
+      x += direction.x;
+      y += direction.y;
+    }
+    return { hitMonster: null, lastFloor, blocked: false };
+  }
+
+  function applyThrownItemEffect(item, targetMonster) {
+    const throwing = getThrowingConfig();
+    if (item.kind === "equipment") {
+      const damage = item.slot === "weapon" ? 2 + (item.attackBonus || 0) : 1 + (item.defenseBonus || 0);
+      targetMonster.hp -= damage;
+      targetMonster.hitFlash = 0.25;
+      addFloater(targetMonster.x, targetMonster.y, `-${damage}`, "#df6657");
+      addMessage(`${item.name}击中了 ${targetMonster.name}，造成 ${damage} 点伤害。`);
+      return;
+    }
+    const effect = (throwing.effects && throwing.effects[item.type]) || {};
+    const damage = Number.isFinite(effect.damage) ? effect.damage : (throwing.defaultDamage || 2);
+    if (damage > 0) {
+      targetMonster.hp -= damage;
+      targetMonster.hitFlash = 0.25;
+      addFloater(targetMonster.x, targetMonster.y, `-${damage}`, "#df6657");
+      addMessage(`${item.name}击中了 ${targetMonster.name}，造成 ${damage} 点伤害。`);
+    }
+    if (effect.sleepTurns) {
+      targetMonster.sleepTurns = Math.max(targetMonster.sleepTurns, effect.sleepTurns);
+      addMessage(`${targetMonster.name} 睡着了。`);
+    }
+  }
+
+  function dropThrownItemAt(item, x, y) {
+    if (!item || item.kind !== "equipment") {
+      return false;
+    }
+    if (!canPlaceEquipmentAt(x, y)) {
+      return false;
+    }
+    state.equipmentOnGround.push(createEquipmentDrop(item.type, x, y, `thrown_${item.type}`));
+    return true;
+  }
+
+  function throwInventoryItem(kind, reference) {
+    if (!canAct()) {
+      return;
+    }
+    if (maybeSkipPlayerTurnForSleep()) {
+      return;
+    }
+    const dir = DIRS[state.player.facing] || DIRS.down;
+    const result = resolveThrowPath(
+      { x: state.player.x + dir.x, y: state.player.y + dir.y },
+      dir,
+      getThrowingConfig().maxRange || getInventoryConfig().throwRange || 5
+    );
+    if (!result.lastFloor && !result.hitMonster) {
+      addMessage("前方没有可投掷的路径。");
+      updateUi();
+      return;
+    }
+    const thrownItem = removeItemFromInventory(kind, reference);
+    if (!thrownItem) {
+      addMessage("背包里没有可投掷的物品。");
+      updateUi();
+      return;
+    }
+    thrownItem.kind = kind;
+    addMessage(`你投掷了${thrownItem.name}。`);
+    if (result.hitMonster) {
+      applyThrownItemEffect(thrownItem, result.hitMonster);
+      if (result.hitMonster.hp <= 0) {
+        state.monsters = state.monsters.filter((monster) => monster !== result.hitMonster);
+        state.kills += 1;
+        addMessage(`${result.hitMonster.name} 被击败了。`);
+      }
+      advanceTurn();
+      return;
+    }
+    if (kind === "equipment" && result.lastFloor && dropThrownItemAt(thrownItem, result.lastFloor.x, result.lastFloor.y)) {
+      addMessage(`${thrownItem.name}落在了地上。`);
+      advanceTurn();
+      return;
+    }
+    addMessage(result.blocked ? "投掷物撞到墙后消失了。" : "投掷物飞出后消失了。");
+    advanceTurn();
+  }
+
   function hasItem(type) {
     return state.inventory[type] > 0;
   }
 
   function consumeItem(type) {
-    state.inventory[type] -= 1;
+    removeItemFromInventory("consumable", type);
     state.itemsUsed += 1;
   }
 
@@ -2477,6 +2853,7 @@
     state.gameOver = true;
     state.victory = victory;
     state.running = false;
+    setInventoryOpen(false);
     ui.resultTitle.textContent = victory ? "鑳滃埄" : "姝讳骸";
     ui.resultCopy.textContent = copy;
     ui.resultFloor.textContent = `${state.floor}F`;
@@ -2497,7 +2874,7 @@
       return `目标：你正在睡眠中，还要 ${state.player.sleepTurns} 回合才能行动。`;
     }
     if (equipmentAt(state.player.x, state.player.y)) {
-      return "目标：脚下有装备。按 C 装备或替换，决定要不要换数值。";
+      return "目标：脚下有装备。按 C 装备或替换，按 G 收进背包。";
     }
     if (isOnStairs()) {
       return state.floor >= config.dungeon.maxFloors ? "目标：按 E / Enter 进入终点并胜利。" : "目标：按 E / Enter 下楼，进入下一层。";
@@ -2519,6 +2896,7 @@
     ui.floor.textContent = `${state.floor}F`;
     ui.turn.textContent = `Turn ${state.turn}`;
     ui.potion.textContent = String(state.inventory.potion);
+    ui.inventoryValue.textContent = `${getInventoryUsedSlots()} / ${getInventoryCapacity()}`;
     ui.satiety.textContent = `${state.player.satiety} / ${state.player.maxSatiety}`;
     ui.attack.textContent = String(getPlayerAttack());
     ui.defense.textContent = String(getPlayerDefense());
@@ -2540,11 +2918,13 @@
     }
 
     updateItemButtons();
+    renderInventoryPanel();
     updateTacticalPanels();
     updateCameraConsole();
     ui.waitButton.disabled = !state.running || state.paused || state.gameOver;
     ui.stairsButton.disabled = !state.running || state.paused || state.gameOver || !isOnStairs();
     ui.equipButton.disabled = !state.running || state.paused || state.gameOver || !equipmentAt(state.player.x, state.player.y);
+    ui.inventoryButton.disabled = !state.running || state.gameOver;
     ui.pause.setAttribute("aria-label", state.paused ? "resume" : "pause");
     markRenderDirty();
   }
@@ -3361,6 +3741,7 @@
   function startGame() {
     state = createState();
     state.running = true;
+    setInventoryOpen(false);
     ui.startOverlay.classList.add("is-hidden");
     ui.resultOverlay.classList.add("is-hidden");
     updateUi();
@@ -3369,6 +3750,7 @@
   function restartGame() {
     state = createState();
     state.running = true;
+    setInventoryOpen(false);
     ui.startOverlay.classList.add("is-hidden");
     ui.resultOverlay.classList.add("is-hidden");
     updateUi();
@@ -3431,6 +3813,29 @@
     ui.start.addEventListener("click", startGame);
     ui.restart.addEventListener("click", restartGame);
     ui.pause.addEventListener("click", togglePause);
+    ui.inventoryButton.addEventListener("click", toggleInventoryPanel);
+    ui.inventoryClose.addEventListener("click", () => {
+      setInventoryOpen(false);
+      updateUi();
+    });
+    ui.inventoryList.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-inventory-action]");
+      if (!button) {
+        return;
+      }
+      const { inventoryAction, kind, type, id } = button.dataset;
+      if (inventoryAction === "use" && kind === "consumable") {
+        useInventoryEntry(type);
+        return;
+      }
+      if (inventoryAction === "equip" && kind === "equipment") {
+        equipInventoryItem(id);
+        return;
+      }
+      if (inventoryAction === "throw") {
+        throwInventoryItem(kind, kind === "consumable" ? type : id);
+      }
+    });
     ui.consolePause.addEventListener("click", togglePause);
     ui.consoleReset.addEventListener("click", restartGame);
     ui.consoleButton.addEventListener("click", () => {
@@ -3461,6 +3866,11 @@
 
   function handleKey(code) {
     if (code === "Escape") {
+      if (inventoryPanelOpen) {
+        setInventoryOpen(false);
+        updateUi();
+        return true;
+      }
       togglePause();
       return true;
     }
@@ -3506,6 +3916,14 @@
     }
     if (code === "KeyC") {
       equipGroundItem();
+      return true;
+    }
+    if (code === "KeyG") {
+      pickupGroundEquipmentToInventory();
+      return true;
+    }
+    if (code === "KeyB") {
+      toggleInventoryPanel();
       return true;
     }
     if (code === "Space" || code === "Period") {

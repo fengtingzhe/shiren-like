@@ -30,6 +30,7 @@
             <div class="status-meta">
               <span id="turn-value">Turn 0</span>
               <span class="potion-pill">药 <strong id="potion-value">0</strong></span>
+              <span class="bag-pill">包 <strong id="inventory-value">0 / 8</strong></span>
             </div>
             <div class="combat-stats">
               <div class="stat-chip">
@@ -56,6 +57,9 @@
             <button id="pause-button" class="icon-button" type="button" aria-label="pause">
               <span class="pause-icon"></span>
             </button>
+            <button id="inventory-button" class="console-button" type="button" aria-label="open inventory" aria-expanded="false">
+              B 背包
+            </button>
             <button id="console-button" class="console-button" type="button" aria-label="open console" aria-expanded="false">
               <span class="console-icon"></span>
               Console
@@ -72,6 +76,19 @@
           <div class="panel-heading">行动序列</div>
           <div id="turn-order" class="turn-order"></div>
           <div id="enemy-list" class="enemy-list"></div>
+        </aside>
+
+        <aside id="inventory-panel" class="inventory-panel is-hidden" aria-label="背包面板" aria-hidden="true">
+          <div class="inventory-header">
+            <div>
+              <div class="panel-heading">背包</div>
+              <div id="inventory-capacity" class="inventory-capacity">0 / 8</div>
+            </div>
+            <button id="inventory-close-button" class="icon-button" type="button" aria-label="close inventory">
+              <span class="close-icon"></span>
+            </button>
+          </div>
+          <div id="inventory-list" class="inventory-list"></div>
         </aside>
 
         <div id="objective" class="objective"></div>
@@ -139,7 +156,7 @@
             <span class="play-icon"></span>
             开始 Demo
           </button>
-          <p class="control-note">WASD / 方向键移动，H 药，F 食物，T 传送，Z 睡眠，R 火球，X 换位，C 装备，空格等待，E 下楼。</p>
+          <p class="control-note">WASD / 方向键移动，H 药，F 食物，T 传送，Z 睡眠，R 火球，X 换位，C 装备，G 入包，B 背包，空格等待，E 下楼。</p>
         </div>
       </section>
 

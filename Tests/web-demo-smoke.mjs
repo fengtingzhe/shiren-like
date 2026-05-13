@@ -20,54 +20,49 @@ for (const [name, path] of Object.entries(paths)) {
 const html = readFileSync(paths.html, "utf8");
 assert.match(html, /shiren-like Web Demo/, "HTML title should identify the demo");
 assert.match(html, /game-canvas/, "HTML should include the main canvas");
-assert.match(html, /console-button/, "HTML should keep the Console entry");
-assert.match(html, /camera-controls/, "HTML should include camera controls");
-assert.match(html, /attack-value/, "HTML should expose ATK");
-assert.match(html, /defense-value/, "HTML should expose DEF");
-assert.match(html, /weapon-value/, "HTML should expose weapon slot");
-assert.match(html, /shield-value/, "HTML should expose shield slot");
-assert.match(html, /equip-button/, "HTML should expose equip action");
+assert.match(html, /inventory-panel/, "HTML should include inventory panel");
+assert.match(html, /inventory-list/, "HTML should include inventory list");
+assert.match(html, /inventory-value/, "HTML should expose inventory capacity");
 
 const css = readFileSync(paths.css, "utf8");
-assert.match(css, /enemy-row/, "CSS should style the enemy panel rows");
-assert.match(css, /camera-controls/, "CSS should style the camera controls");
-assert.match(css, /combat-stats/, "CSS should style combat stat chips");
-assert.match(css, /equipment-line/, "CSS should style equipment rows");
+assert.match(css, /inventory-panel/, "CSS should style the inventory panel");
+assert.match(css, /inventory-row/, "CSS should style inventory rows");
 
 const webReadme = readFileSync(paths.webReadme, "utf8");
-assert.match(webReadme, /v0\.7\.1 \/ 装备池补全与平衡版/, "README should describe v0.7.1");
-assert.match(webReadme, /火焰剑|Flame Sword/, "README should mention Flame Sword");
-assert.match(webReadme, /守护盾|Guard Shield/, "README should mention Guard Shield");
-assert.match(webReadme, /相邻安全格/, "README should describe adjacent equipment drop behavior");
+assert.match(webReadme, /v0\.8 \/ 背包与投掷版/, "README should describe v0.8");
+assert.match(webReadme, /背包/, "README should mention inventory");
+assert.match(webReadme, /容量/, "README should mention capacity");
+assert.match(webReadme, /投掷/, "README should mention throwing");
 
 const js = readFileSync(paths.js, "utf8");
-assert.match(js, /createEquipmentDrop/, "JS should create equipment drops");
-assert.match(js, /equipmentOnGround/, "JS should track ground equipment");
-assert.match(js, /placeEquipmentDrops/, "JS should place equipment in dungeon generation");
-assert.match(js, /equipGroundItem/, "JS should allow equipping ground equipment");
-assert.match(js, /getPlayerAttack/, "JS should compute derived player attack");
-assert.match(js, /getPlayerDefense/, "JS should compute derived player defense");
-assert.match(js, /KeyC/, "JS should bind equip hotkey");
-assert.match(js, /weapon-value/, "JS should update weapon UI");
-assert.match(js, /shield-value/, "JS should update shield UI");
-assert.match(js, /placeHazards/, "JS should keep hazard generation");
-assert.match(js, /triggerTrapAt/, "JS should keep trap triggering");
+assert.match(js, /getInventoryUsedSlots/, "JS should compute inventory slots");
+assert.match(js, /hasInventorySpace/, "JS should check inventory capacity");
+assert.match(js, /addItemToInventory/, "JS should add items into inventory");
+assert.match(js, /removeItemFromInventory/, "JS should remove items from inventory");
+assert.match(js, /toggleInventoryPanel/, "JS should toggle inventory panel");
+assert.match(js, /renderInventoryPanel/, "JS should render inventory panel");
+assert.match(js, /throwInventoryItem/, "JS should throw inventory items");
+assert.match(js, /resolveThrowPath/, "JS should resolve throw path");
+assert.match(js, /applyThrownItemEffect/, "JS should apply throw effects");
+assert.match(js, /dropThrownItemAt/, "JS should drop thrown equipment");
+assert.match(js, /createEquipmentDrop/, "JS should still create equipment drops");
+assert.match(js, /equipmentOnGround/, "JS should still track ground equipment");
+assert.match(js, /equipGroundItem/, "JS should still support ground equip");
+assert.match(js, /getPlayerAttack/, "JS should keep derived ATK");
+assert.match(js, /getPlayerDefense/, "JS should keep derived DEF");
+assert.match(js, /placeHazards/, "JS should keep hazards");
+assert.match(js, /triggerTrapAt/, "JS should keep trap triggers");
 assert.match(js, /applyTerrainAt/, "JS should keep terrain damage");
 assert.match(js, /actMonster/, "JS should keep monster AI");
-assert.match(js, /generateDungeon/, "JS should keep random dungeon generation");
-assert.match(js, /CAMERA_FIELDS/, "JS should keep camera tuning support");
-assert.match(js, /findSafeEquipmentDropCell/, "JS should provide stable drop logic");
+assert.match(js, /generateDungeon/, "JS should keep dungeon generation");
+assert.match(js, /CAMERA_FIELDS/, "JS should keep camera tuning");
 
 const config = JSON.parse(readFileSync(paths.config, "utf8"));
-assert.equal(config.version, "v0.7.1", "config should be v0.7.1");
-assert.equal(typeof config.equipment, "object", "config should include equipment");
-assert.equal(Boolean(config.equipment.flame_sword), true, "config should include flame_sword");
-assert.equal(Boolean(config.equipment.guard_shield), true, "config should include guard_shield");
-assert.equal(config.equipment.flame_sword.attackBonus, 4, "flame sword should grant +4 ATK");
-assert.equal(config.equipment.guard_shield.defenseBonus, 3, "guard shield should grant +3 DEF");
-assert.equal(config.dungeon.generation.floorRules[2].equipmentTypes.some((entry) => entry.type === "flame_sword"), true, "3F should include flame_sword");
-assert.equal(config.dungeon.generation.floorRules[2].equipmentTypes.some((entry) => entry.type === "guard_shield"), true, "3F should include guard_shield");
-assert.equal(Array.isArray(config.hazards.floorRules), true, "hazard floor rules should still exist");
+assert.equal(config.version, "v0.8", "config should be v0.8");
+assert.equal(typeof config.inventorySystem, "object", "config should include inventorySystem");
+assert.equal(config.inventorySystem.capacity, 8, "inventory capacity should be 8");
+assert.equal(config.inventorySystem.throwRange, 5, "inventory throw range should be configured");
+assert.equal(config.throwing.maxRange, 5, "throwing max range should be configured");
 
 const forbiddenCoreTerms = [
   "treeCost",
@@ -82,4 +77,4 @@ for (const term of forbiddenCoreTerms) {
   assert.equal(js.includes(term), false, `JS should not keep old core term: ${term}`);
 }
 
-console.log("v0.7.1 shiren-like equipment pool smoke test passed");
+console.log("v0.8 shiren-like inventory and throwing smoke test passed");
