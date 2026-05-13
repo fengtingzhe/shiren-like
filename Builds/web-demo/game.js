@@ -1671,8 +1671,6 @@
     canvas.height = Math.floor(rect.height * view.dpr);
     ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
 
-    const mapWidth = state ? state.width : config.dungeon.width;
-    const mapHeight = state ? state.height : config.dungeon.height;
     const compact = rect.width <= 760;
     const leftGap = compact ? 18 : 330;
     const rightGap = compact ? 18 : 304;
@@ -1701,24 +1699,19 @@
     view.rowStep = Math.round(sanitizeCameraValue("rowStep", cameraView.rowStep) * view.cameraZoom);
     view.tileDepth = Math.round(sanitizeCameraValue("tileDepth", cameraView.tileDepth) * view.cameraZoom);
 
-    const projectedWidth = Math.max(1, (mapWidth - 1) * view.tileW + Math.max(0, mapHeight - 1) * view.perspectiveOffset + view.tileW);
-    const projectedHeight = Math.max(1, (mapHeight - 1) * view.rowStep + view.tileDepth + view.tileH);
-
     if (state && state.player) {
       const cameraTarget = getCameraTarget();
-      const targetProjectedX = cameraTarget.x * view.tileW + cameraTarget.y * view.perspectiveOffset + view.tileW / 2;
-      const targetProjectedY = cameraTarget.y * view.rowStep + view.rowStep * 0.78;
-      const centeredOriginX = playLeft + availableW * 0.5 + view.cameraCenterOffsetX - targetProjectedX;
-      const centeredOriginY = playTop + availableH * 0.54 + view.cameraCenterOffsetY - targetProjectedY;
-      const minOriginX = projectedWidth > availableW ? playLeft + availableW - projectedWidth : playLeft + (availableW - projectedWidth) / 2;
-      const maxOriginX = projectedWidth > availableW ? playLeft : playLeft + (availableW - projectedWidth) / 2;
-      const minOriginY = projectedHeight > availableH ? playTop + availableH - projectedHeight : playTop + (availableH - projectedHeight) / 2;
-      const maxOriginY = projectedHeight > availableH ? playTop : playTop + (availableH - projectedHeight) / 2;
-      view.originX = Math.floor(clamp(centeredOriginX, minOriginX, maxOriginX));
-      view.originY = Math.floor(clamp(centeredOriginY, minOriginY, maxOriginY));
+      const playerAnchor = getPlayerAnchorLocal();
+      const targetProjectedX = cameraTarget.x * view.tileW + cameraTarget.y * view.perspectiveOffset + playerAnchor.x;
+      const targetProjectedY = cameraTarget.y * view.rowStep + playerAnchor.y;
+      const centeredOriginX = rect.width * 0.5 + view.cameraCenterOffsetX - targetProjectedX;
+      const centeredOriginY = rect.height * 0.5 + view.cameraCenterOffsetY - targetProjectedY;
+      view.originX = Math.floor(centeredOriginX);
+      view.originY = Math.floor(centeredOriginY);
     } else {
-      view.originX = Math.floor(playLeft + (availableW - projectedWidth) / 2);
-      view.originY = Math.floor(playTop + (availableH - projectedHeight) / 2);
+      const playerAnchor = getPlayerAnchorLocal();
+      view.originX = Math.floor(rect.width * 0.5 - playerAnchor.x);
+      view.originY = Math.floor(rect.height * 0.5 - playerAnchor.y);
     }
     drawMinimap();
   }
@@ -1734,7 +1727,15 @@
     const p = tileToScreen(x, y);
     return {
       x: p.x + view.tileW / 2,
-      y: p.y + view.rowStep * 0.78
+      y: p.y + view.rowStep * 0.8
+    };
+  }
+
+  function getPlayerAnchorLocal() {
+    const size = view.tileW;
+    return {
+      x: size * 0.5,
+      y: view.rowStep * 0.8 - size * 0.34
     };
   }
 
@@ -1981,9 +1982,10 @@
   function drawPlayer() {
     const p = tileToScreen(state.player.x, state.player.y);
     const size = view.tileW;
-    const cx = p.x + size * 0.5;
-    const footY = p.y + view.rowStep * 0.8;
-    const bodyY = footY - size * 0.34;
+    const anchor = getPlayerAnchorLocal();
+    const cx = p.x + anchor.x;
+    const bodyY = p.y + anchor.y;
+    const footY = bodyY + size * 0.34;
     ctx.fillStyle = "rgba(0, 0, 0, 0.34)";
     ctx.beginPath();
     ctx.ellipse(cx, footY, size * 0.22, view.rowStep * 0.17, 0, 0, Math.PI * 2);
