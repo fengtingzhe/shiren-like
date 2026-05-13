@@ -1,5 +1,5 @@
 {
-  "version": "v0.5",
+  "version": "v0.6",
   "dungeon": {
     "maxFloors": 3,
     "width": 36,
@@ -101,10 +101,6 @@
       "color": "#7ec3c3"
     }
   },
-  "potion": {
-    "name": "恢复药",
-    "heal": 8
-  },
   "items": {
     "potion": {
       "name": "恢复药",
@@ -135,6 +131,86 @@
       "name": "换位杖",
       "key": "X"
     }
+  },
+  "hazards": {
+    "traps": {
+      "spike_trap": {
+        "id": "spike_trap",
+        "name": "地刺陷阱",
+        "type": "trap",
+        "damage": 4,
+        "visible": true,
+        "singleUse": true,
+        "icon": "^",
+        "color": "#d85f4f"
+      },
+      "warp_trap": {
+        "id": "warp_trap",
+        "name": "传送陷阱",
+        "type": "trap",
+        "visible": true,
+        "singleUse": true,
+        "icon": "?",
+        "color": "#9c78da"
+      },
+      "sleep_trap": {
+        "id": "sleep_trap",
+        "name": "睡眠陷阱",
+        "type": "trap",
+        "sleepTurns": 2,
+        "visible": true,
+        "singleUse": true,
+        "icon": "Z",
+        "color": "#7f7de2"
+      }
+    },
+    "terrain": {
+      "poison_pool": {
+        "id": "poison_pool",
+        "name": "毒沼",
+        "type": "terrain",
+        "damage": 1,
+        "icon": "~",
+        "color": "#5fae63"
+      }
+    },
+    "floorRules": [
+      {
+        "traps": [1, 2],
+        "terrain": [1, 2],
+        "trapTypes": [
+          { "type": "spike_trap", "weight": 70 },
+          { "type": "warp_trap", "weight": 30 }
+        ],
+        "terrainTypes": [
+          { "type": "poison_pool", "weight": 100 }
+        ]
+      },
+      {
+        "traps": [2, 3],
+        "terrain": [2, 3],
+        "trapTypes": [
+          { "type": "spike_trap", "weight": 45 },
+          { "type": "warp_trap", "weight": 30 },
+          { "type": "sleep_trap", "weight": 25 }
+        ],
+        "terrainTypes": [
+          { "type": "poison_pool", "weight": 100 }
+        ]
+      },
+      {
+        "traps": [3, 4],
+        "terrain": [3, 5],
+        "trapTypes": [
+          { "type": "spike_trap", "weight": 40 },
+          { "type": "warp_trap", "weight": 30 },
+          { "type": "sleep_trap", "weight": 30 }
+        ],
+        "terrainTypes": [
+          { "type": "poison_pool", "weight": 100 }
+        ]
+      }
+    ]
   },
   "log": {
     "maxEntries": 6

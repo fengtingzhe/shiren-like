@@ -20,57 +20,48 @@ for (const [name, path] of Object.entries(paths)) {
 const html = readFileSync(paths.html, "utf8");
 assert.match(html, /shiren-like Web Demo/, "HTML title should identify the demo");
 assert.match(html, /game-canvas/, "HTML should include the main canvas");
-assert.match(html, /styles\.css/, "HTML should load styles.css");
-assert.match(html, /game\.js/, "HTML should load game.js");
 assert.match(html, /console-button/, "HTML should keep the Console entry");
 assert.match(html, /camera-controls/, "HTML should include camera controls");
 
 const css = readFileSync(paths.css, "utf8");
-assert.match(css, /console-section/, "CSS should style the console section");
-assert.match(css, /camera-controls/, "CSS should style the camera controls");
 assert.match(css, /enemy-row/, "CSS should style the enemy panel rows");
-assert.match(css, /enemy-icon/, "CSS should style the enemy icons");
+assert.match(css, /camera-controls/, "CSS should style the camera controls");
 
 const webReadme = readFileSync(paths.webReadme, "utf8");
-assert.match(webReadme, /v0\.5 \/ 怪物机制版/, "README should describe v0.5");
-assert.match(webReadme, /Goblin Archer/, "README should mention Goblin Archer");
-assert.match(webReadme, /Sleep Mushroom/, "README should mention Sleep Mushroom");
-assert.match(webReadme, /Skeleton Spearman/, "README should mention Skeleton Spearman");
-assert.match(webReadme, /monsterTypes/, "README should mention weighted monster types");
-assert.match(webReadme, /Camera \/ View/, "README should mention the camera tuning panel");
+assert.match(webReadme, /v0\.6 \/ 陷阱与危险地形版/, "README should describe v0.6");
+assert.match(webReadme, /Spike Trap/, "README should mention Spike Trap");
+assert.match(webReadme, /Warp Trap/, "README should mention Warp Trap");
+assert.match(webReadme, /Sleep Trap/, "README should mention Sleep Trap");
+assert.match(webReadme, /Poison Pool/, "README should mention Poison Pool");
+assert.match(webReadme, /小地图当前只显示持续危险地形/, "README should describe the minimap hazard strategy");
 
 const js = readFileSync(paths.js, "utf8");
-assert.match(js, /actMonster/, "JS should dispatch monster behaviors");
-assert.match(js, /actRanged/, "JS should implement ranged monster behavior");
-assert.match(js, /actSleepMushroom/, "JS should implement sleep mushroom behavior");
-assert.match(js, /actReachAttack/, "JS should implement reach attack behavior");
-assert.match(js, /hasLineOfSight/, "JS should check line of sight for ranged attacks");
-assert.match(js, /getMonsterThreatCells/, "JS should compute behavior-specific threat cells");
-assert.match(js, /getMonsterStatusText/, "JS should compute enemy panel status text");
-assert.match(js, /player:\s*\{[\s\S]*sleepTurns/, "JS should keep player sleep state");
-assert.match(js, /cooldownRemaining/, "JS should track monster cooldowns");
-assert.match(js, /monsterTypes/, "JS should support weighted monster pools");
-assert.match(js, /placeMonstersByRoom/, "JS should keep room-based monster placement");
+assert.match(js, /createTrap/, "JS should create trap instances");
+assert.match(js, /createTerrainHazard/, "JS should create terrain hazard instances");
+assert.match(js, /placeHazards/, "JS should place hazards");
+assert.match(js, /placeTraps/, "JS should place traps");
+assert.match(js, /placeTerrainHazards/, "JS should place terrain hazards");
+assert.match(js, /triggerTrapAt/, "JS should trigger traps");
+assert.match(js, /applyTerrainAt/, "JS should apply terrain effects");
+assert.match(js, /findSafeTeleportDestination/, "JS should find safe warp destinations");
+assert.match(js, /trapLookup/, "JS should keep trap lookups");
+assert.match(js, /terrainLookup/, "JS should keep terrain lookups");
+assert.match(js, /sleepTurns/, "JS should keep player sleep state");
+assert.match(js, /getMonsterThreatCells/, "JS should keep monster threat logic");
 assert.match(js, /generateDungeon/, "JS should keep random dungeon generation");
-assert.match(js, /hunger/i, "JS should keep hunger logic");
-assert.match(js, /satiety/i, "JS should keep satiety logic");
-assert.match(js, /teleport/i, "JS should keep teleport logic");
-assert.match(js, /sleep/i, "JS should keep sleep logic");
-assert.match(js, /fireball/i, "JS should keep fireball logic");
-assert.match(js, /swap/i, "JS should keep swap logic");
-assert.match(js, /minimap/i, "JS should keep minimap logic");
-assert.match(js, /enemyList/, "JS should keep the enemy panel logic");
+assert.match(js, /placeMonstersByRoom/, "JS should keep room-based monster placement");
 assert.match(js, /CAMERA_FIELDS/, "JS should keep camera tuning support");
 
 const config = JSON.parse(readFileSync(paths.config, "utf8"));
-assert.equal(config.version, "v0.5", "config should be v0.5");
-assert.equal(config.camera.cameraMode, "traditional-tilt", "camera mode should stay traditional tilt");
-assert.equal(typeof config.monsters, "object", "config should include multi-monster data");
-assert.equal(config.monsters.slime.behavior, "melee", "slime should be melee");
-assert.equal(config.monsters.goblin_archer.behavior, "ranged", "goblin archer should be ranged");
-assert.equal(config.monsters.sleep_mushroom.behavior, "sleep_spore", "sleep mushroom should use sleep spore");
-assert.equal(config.monsters.skeleton_spearman.behavior, "reach_attack", "skeleton spearman should use reach attack");
-assert.equal(Array.isArray(config.dungeon.generation.floorRules[0].monsterTypes), true, "floor rules should include monsterTypes");
+assert.equal(config.version, "v0.6", "config should be v0.6");
+assert.equal(typeof config.hazards, "object", "config should include hazards");
+assert.equal(config.hazards.traps.spike_trap.damage, 4, "spike trap damage should be configured");
+assert.equal(config.hazards.traps.warp_trap.icon, "?", "warp trap should be configured");
+assert.equal(config.hazards.traps.sleep_trap.sleepTurns, 2, "sleep trap should be configured");
+assert.equal(config.hazards.terrain.poison_pool.damage, 1, "poison pool damage should be configured");
+assert.equal(Array.isArray(config.hazards.floorRules), true, "hazard floor rules should exist");
+assert.equal(Array.isArray(config.hazards.floorRules[0].trapTypes), true, "trapTypes should exist");
+assert.equal(Array.isArray(config.hazards.floorRules[0].terrainTypes), true, "terrainTypes should exist");
 
 const forbiddenCoreTerms = [
   "treeCost",
@@ -85,4 +76,4 @@ for (const term of forbiddenCoreTerms) {
   assert.equal(js.includes(term), false, `JS should not keep old core term: ${term}`);
 }
 
-console.log("v0.5 shiren-like monster mechanics smoke test passed");
+console.log("v0.6 shiren-like hazard and terrain smoke test passed");

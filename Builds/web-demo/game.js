@@ -1,7 +1,7 @@
 ﻿(() => {
   const CONFIG_URL = "../../Data/config/web_demo_balance.json";
   const DEFAULT_CONFIG = {
-    version: "v0.5",
+    version: "v0.6",
     dungeon: {
       maxFloors: 3,
       width: 36,
@@ -191,6 +191,86 @@
         key: "X"
       }
     },
+    hazards: {
+      traps: {
+        spike_trap: {
+          id: "spike_trap",
+          name: "地刺陷阱",
+          type: "trap",
+          damage: 4,
+          visible: true,
+          singleUse: true,
+          icon: "^",
+          color: "#d85f4f"
+        },
+        warp_trap: {
+          id: "warp_trap",
+          name: "传送陷阱",
+          type: "trap",
+          visible: true,
+          singleUse: true,
+          icon: "?",
+          color: "#9c78da"
+        },
+        sleep_trap: {
+          id: "sleep_trap",
+          name: "睡眠陷阱",
+          type: "trap",
+          sleepTurns: 2,
+          visible: true,
+          singleUse: true,
+          icon: "Z",
+          color: "#7f7de2"
+        }
+      },
+      terrain: {
+        poison_pool: {
+          id: "poison_pool",
+          name: "毒沼",
+          type: "terrain",
+          damage: 1,
+          icon: "~",
+          color: "#5fae63"
+        }
+      },
+      floorRules: [
+        {
+          traps: [1, 2],
+          terrain: [1, 2],
+          trapTypes: [
+            { type: "spike_trap", weight: 70 },
+            { type: "warp_trap", weight: 30 }
+          ],
+          terrainTypes: [
+            { type: "poison_pool", weight: 100 }
+          ]
+        },
+        {
+          traps: [2, 3],
+          terrain: [2, 3],
+          trapTypes: [
+            { type: "spike_trap", weight: 45 },
+            { type: "warp_trap", weight: 30 },
+            { type: "sleep_trap", weight: 25 }
+          ],
+          terrainTypes: [
+            { type: "poison_pool", weight: 100 }
+          ]
+        },
+        {
+          traps: [3, 4],
+          terrain: [3, 5],
+          trapTypes: [
+            { type: "spike_trap", weight: 40 },
+            { type: "warp_trap", weight: 30 },
+            { type: "sleep_trap", weight: 30 }
+          ],
+          terrainTypes: [
+            { type: "poison_pool", weight: 100 }
+          ]
+        }
+      ]
+    },
     log: {
       maxEntries: 6
     },
@@ -278,6 +358,16 @@
     z: "sleep",
     r: "fireball",
     x: "swap"
+  };
+
+  const TRAP_MARKS = {
+    "^": "spike_trap",
+    "?": "warp_trap",
+    Z: "sleep_trap"
+  };
+
+  const TERRAIN_MARKS = {
+    "~": "poison_pool"
   };
 
   const ITEM_META = {
@@ -373,6 +463,10 @@
       height: 0,
       rooms: [],
       tiles: [],
+      traps: [],
+      trapLookup: new Map(),
+      terrainHazards: [],
+      terrainLookup: new Map(),
       monsters: [],
       itemsOnGround: [],
       stairs: { x: 1, y: 1 },
@@ -422,6 +516,69 @@
     return cells.sort((a, b) => a.y - b.y || a.x - b.x);
   }
 
+  function getHazardConfig() {
+    return config.hazards || DEFAULT_CONFIG.hazards || { traps: {}, terrain: {}, floorRules: [] };
+  }
+
+  function getTrapCatalog() {
+    return getHazardConfig().traps || {};
+  }
+
+  function getTerrainCatalog() {
+    return getHazardConfig().terrain || {};
+  }
+
+  function getTrapTemplate(type = "spike_trap") {
+    const catalog = getTrapCatalog();
+    return catalog[type] || DEFAULT_CONFIG.hazards.traps.spike_trap;
+  }
+
+  function getTerrainTemplate(type = "poison_pool") {
+    const catalog = getTerrainCatalog();
+    return catalog[type] || DEFAULT_CONFIG.hazards.terrain.poison_pool;
+  }
+
+  function getHazardFloorRules(floorIndex) {
+    const rules = getHazardConfig().floorRules || DEFAULT_CONFIG.hazards.floorRules || [];
+    return rules[Math.min(floorIndex, rules.length - 1)] || { traps: [0, 0], terrain: [0, 0], trapTypes: [], terrainTypes: [] };
+  }
+
+  function createTrap(x, y, index, type) {
+    const template = getTrapTemplate(type);
+    return {
+      id: `trap_${index}_${Date.now()}`,
+      type: template.id || type,
+      name: template.name,
+      x,
+      y,
+      damage: template.damage || 0,
+      sleepTurns: template.sleepTurns || 0,
+      visible: template.visible !== false,
+      singleUse: template.singleUse !== false,
+      icon: template.icon || "^",
+      color: template.color || "#d85f4f"
+    };
+  }
+
+  function createTerrainHazard(x, y, index, type) {
+    const template = getTerrainTemplate(type);
+    return {
+      id: `terrain_${index}_${Date.now()}`,
+      type: template.id || type,
+      name: template.name,
+      x,
+      y,
+      damage: template.damage || 0,
+      icon: template.icon || "~",
+      color: template.color || "#5fae63"
+    };
+  }
+
+  function rebuildHazardLookups() {
+    state.trapLookup = new Map(state.traps.map((trap) => [keyOf(trap.x, trap.y), trap]));
+    state.terrainLookup = new Map(state.terrainHazards.map((terrain) => [keyOf(terrain.x, terrain.y), terrain]));
+  }
+
   function loadFloor(floorIndex) {
     if (config.dungeon.generation && config.dungeon.generation.enabled) {
       const generatedFloor = generateDungeon(floorIndex);
@@ -443,6 +600,8 @@
     const height = rows.length;
     const width = rows[0].length;
     const tiles = [];
+    const traps = [];
+    const terrainHazards = [];
     const monsters = [];
     const itemsOnGround = [];
     let playerStart = null;
@@ -461,6 +620,12 @@
         if (mark === "m") {
           monsters.push(createMonster(x, y, monsters.length));
         }
+        if (TRAP_MARKS[mark]) {
+          traps.push(createTrap(x, y, traps.length, TRAP_MARKS[mark]));
+        }
+        if (TERRAIN_MARKS[mark]) {
+          terrainHazards.push(createTerrainHazard(x, y, terrainHazards.length, TERRAIN_MARKS[mark]));
+        }
         if (ITEM_MARKS[mark]) {
           itemsOnGround.push({
             id: `item_${floorIndex}_${itemsOnGround.length}`,
@@ -478,6 +643,8 @@
       height,
       rooms: [],
       tiles,
+      traps,
+      terrainHazards,
       monsters,
       itemsOnGround,
       stairs: stairs || { x: width - 2, y: height - 2 },
@@ -494,6 +661,9 @@
     state.rooms = floorData.rooms || [];
     state.tiles = floorData.tiles;
     state.renderTiles = buildRenderTiles(state.width, state.height, state.tiles);
+    state.traps = floorData.traps || [];
+    state.terrainHazards = floorData.terrainHazards || [];
+    rebuildHazardLookups();
     state.monsters = floorData.monsters;
     state.itemsOnGround = floorData.itemsOnGround;
     state.stairs = floorData.stairs;
@@ -527,6 +697,8 @@
     });
     const occupied = new Set([keyOf(playerStart.x, playerStart.y), keyOf(stairs.x, stairs.y)]);
     const rules = getFloorRules(floorIndex);
+    const traps = [];
+    const terrainHazards = [];
     const monsters = [];
     const itemsOnGround = [];
 
@@ -534,6 +706,7 @@
     placeItems(itemsOnGround, occupied, tiles, width, height, "potion", randomFromRange(rules.potion), floorIndex);
     placeItems(itemsOnGround, occupied, tiles, width, height, "food", randomFromRange(rules.food), floorIndex);
     placeStrategyItems(itemsOnGround, occupied, tiles, width, height, randomFromRange(rules.strategyItems), floorIndex);
+    placeHazards(traps, terrainHazards, rooms, occupied, tiles, width, height, floorIndex, playerStart, stairs);
 
     return {
       name: `闅忔満杩峰 ${floorIndex + 1}F`,
@@ -541,6 +714,8 @@
       height,
       rooms,
       tiles,
+      traps,
+      terrainHazards,
       monsters,
       itemsOnGround,
       stairs,
@@ -899,6 +1074,85 @@
     }
   }
 
+  function pickWeightedHazardType(entries, fallback) {
+    const pool = (entries || []).filter((entry) => Number(entry.weight) > 0);
+    if (pool.length === 0) {
+      return fallback;
+    }
+    const total = pool.reduce((sum, entry) => sum + Number(entry.weight), 0);
+    let roll = Math.random() * total;
+    for (const entry of pool) {
+      roll -= Number(entry.weight);
+      if (roll <= 0) {
+        return entry.type;
+      }
+    }
+    return pool[pool.length - 1].type;
+  }
+
+  function isValidHazardCell(candidate, playerStart, stairs) {
+    if (candidate.x === playerStart.x && candidate.y === playerStart.y) {
+      return false;
+    }
+    if (candidate.x === stairs.x && candidate.y === stairs.y) {
+      return false;
+    }
+    if (manhattan(candidate.x, candidate.y, stairs.x, stairs.y) <= 1) {
+      return false;
+    }
+    if (manhattan(candidate.x, candidate.y, playerStart.x, playerStart.y) <= 1) {
+      return false;
+    }
+    return true;
+  }
+
+  function takeRandomHazardCell(rooms, tiles, width, height, occupied, playerStart, stairs) {
+    const hazardRooms = rooms.filter((room) => !room.isStartRoom);
+    if (hazardRooms.length > 0) {
+      const shuffled = shuffle(hazardRooms);
+      for (const room of shuffled) {
+        const cell = takeRandomRoomCell(room, tiles, width, occupied, (candidate) => isValidHazardCell(candidate, playerStart, stairs));
+        if (cell) {
+          return cell;
+        }
+      }
+    }
+    return takeRandomFloorCell(tiles, width, height, occupied, (candidate) => isValidHazardCell(candidate, playerStart, stairs));
+  }
+
+  function placeHazards(traps, terrainHazards, rooms, occupied, tiles, width, height, floorIndex, playerStart, stairs) {
+    placeTraps(traps, rooms, occupied, tiles, width, height, floorIndex, playerStart, stairs);
+    placeTerrainHazards(terrainHazards, rooms, occupied, tiles, width, height, floorIndex, playerStart, stairs);
+  }
+
+  function placeTraps(traps, rooms, occupied, tiles, width, height, floorIndex, playerStart, stairs) {
+    const rules = getHazardFloorRules(floorIndex);
+    const count = randomFromRange(rules.traps);
+    for (let index = 0; index < count; index += 1) {
+      const cell = takeRandomHazardCell(rooms, tiles, width, height, occupied, playerStart, stairs);
+      if (!cell) {
+        return;
+      }
+      const type = pickWeightedHazardType(rules.trapTypes, "spike_trap");
+      occupied.add(keyOf(cell.x, cell.y));
+      traps.push(createTrap(cell.x, cell.y, `${floorIndex}_${index}`, type));
+    }
+  }
+
+  function placeTerrainHazards(terrainHazards, rooms, occupied, tiles, width, height, floorIndex, playerStart, stairs) {
+    const rules = getHazardFloorRules(floorIndex);
+    const count = randomFromRange(rules.terrain);
+    for (let index = 0; index < count; index += 1) {
+      const cell = takeRandomHazardCell(rooms, tiles, width, height, occupied, playerStart, stairs);
+      if (!cell) {
+        return;
+      }
+      const type = pickWeightedHazardType(rules.terrainTypes, "poison_pool");
+      occupied.add(keyOf(cell.x, cell.y));
+      terrainHazards.push(createTerrainHazard(cell.x, cell.y, `${floorIndex}_${index}`, type));
+    }
+  }
+
   function takeRandomFloorCell(tiles, width, height, occupied, predicate = null) {
     const candidates = [];
     for (let y = 1; y < height - 1; y += 1) {
@@ -962,8 +1216,20 @@
     return state.itemsOnGround.find((item) => item.x === x && item.y === y);
   }
 
+  function trapAt(x, y) {
+    return state.trapLookup.get(keyOf(x, y)) || null;
+  }
+
+  function terrainAt(x, y) {
+    return state.terrainLookup.get(keyOf(x, y)) || null;
+  }
+
   function isOnStairs() {
     return state.player.x === state.stairs.x && state.player.y === state.stairs.y;
+  }
+
+  function isHazardTile(x, y) {
+    return Boolean(trapAt(x, y) || terrainAt(x, y));
   }
 
   function manhattan(ax, ay, bx, by) {
@@ -990,6 +1256,71 @@
       y += stepY;
     }
     return true;
+  }
+
+  function removeTrap(trap) {
+    state.traps = state.traps.filter((item) => item !== trap);
+    state.trapLookup.delete(keyOf(trap.x, trap.y));
+  }
+
+  function triggerTrapAt(x, y) {
+    const trap = trapAt(x, y);
+    if (!trap) {
+      return false;
+    }
+    switch (trap.type) {
+      case "warp_trap": {
+        const destination = findSafeTeleportDestination();
+        if (!destination) {
+          addMessage(`${trap.name} 触发了，但没有找到安全落点。`);
+          break;
+        }
+        state.player.x = destination.x;
+        state.player.y = destination.y;
+        addFloater(destination.x, destination.y, "Warp", trap.color);
+        addMessage("传送陷阱启动了，你被传送到了别处。");
+        break;
+      }
+      case "sleep_trap":
+        state.player.sleepTurns = Math.max(state.player.sleepTurns, trap.sleepTurns);
+        addFloater(x, y, "Sleep", trap.color);
+        addMessage("你踩中了睡眠陷阱，陷入沉睡。");
+        break;
+      default:
+        state.player.hp = Math.max(0, state.player.hp - trap.damage);
+        state.player.hitFlash = 0.25;
+        addFloater(x, y, `-${trap.damage}`, trap.color);
+        addMessage(`你踩中了地刺陷阱，受到 ${trap.damage} 点伤害。`);
+        if (state.player.hp <= 0) {
+          state.deathReason = "你被地刺陷阱击倒，HP 归零。";
+          finishGame(false, state.deathReason);
+        }
+        break;
+    }
+    if (trap.singleUse) {
+      removeTrap(trap);
+      addMessage(`${trap.name} 已失效。`);
+    }
+    return true;
+  }
+
+  function applyTerrainAt(x, y) {
+    const terrain = terrainAt(x, y);
+    if (!terrain) {
+      return false;
+    }
+    if (terrain.type === "poison_pool") {
+      state.player.hp = Math.max(0, state.player.hp - terrain.damage);
+      state.player.hitFlash = 0.25;
+      addFloater(x, y, `-${terrain.damage}`, terrain.color);
+      addMessage(`毒沼腐蚀了你，受到 ${terrain.damage} 点伤害。`);
+      if (state.player.hp <= 0) {
+        state.deathReason = "你被毒沼腐蚀倒下，HP 归零。";
+        finishGame(false, state.deathReason);
+      }
+      return true;
+    }
+    return false;
   }
 
   function addMessage(message) {
@@ -1048,6 +1379,11 @@
 
     state.player.x = targetX;
     state.player.y = targetY;
+    triggerTrapAt(state.player.x, state.player.y);
+    if (state.gameOver) {
+      updateUi();
+      return;
+    }
     pickupItem();
     advanceTurn();
   }
@@ -1198,6 +1534,43 @@
           continue;
         }
         if (monsterAt(x, y)) {
+          continue;
+        }
+        if (isHazardTile(x, y)) {
+          continue;
+        }
+        candidates.push({ x, y });
+      }
+    }
+    if (candidates.length === 0) {
+      return null;
+    }
+    return candidates[Math.floor(Math.random() * candidates.length)];
+  }
+
+  function findSafeTeleportDestination() {
+    const candidates = [];
+    for (let y = 0; y < state.height; y += 1) {
+      for (let x = 0; x < state.width; x += 1) {
+        if (!isWalkable(x, y)) {
+          continue;
+        }
+        if (state.player.x === x && state.player.y === y) {
+          continue;
+        }
+        if (monsterAt(x, y)) {
+          continue;
+        }
+        if (itemAt(x, y)) {
+          continue;
+        }
+        if (state.stairs.x === x && state.stairs.y === y) {
+          continue;
+        }
+        if (isHazardTile(x, y)) {
+          continue;
+        }
+        if (manhattan(x, y, state.stairs.x, state.stairs.y) <= 1) {
           continue;
         }
         candidates.push({ x, y });
@@ -1363,6 +1736,11 @@
       updateUi();
       return;
     }
+    applyTerrainAt(state.player.x, state.player.y);
+    if (state.gameOver) {
+      updateUi();
+      return;
+    }
     monstersAct();
     updateUi();
     if (!state.gameOver) {
@@ -1373,6 +1751,11 @@
   function advanceSleepingTurn() {
     state.turn += 1;
     applyHunger();
+    if (state.gameOver) {
+      updateUi();
+      return;
+    }
+    applyTerrainAt(state.player.x, state.player.y);
     if (state.gameOver) {
       updateUi();
       return;
@@ -1651,6 +2034,9 @@
 
   function canMonsterMoveTo(x, y, self) {
     if (!isWalkable(x, y)) {
+      return false;
+    }
+    if (isHazardTile(x, y)) {
       return false;
     }
     if (state.player.x === x && state.player.y === y) {
@@ -1996,6 +2382,10 @@
       minimapCtx.fillStyle = ITEM_META[item.type].color;
       minimapCtx.fillRect(offsetX + item.x * cell, offsetY + item.y * cell, cell, cell);
     });
+    state.terrainHazards.forEach((terrain) => {
+      minimapCtx.fillStyle = terrain.color || "#5fae63";
+      minimapCtx.fillRect(offsetX + terrain.x * cell, offsetY + terrain.y * cell, cell, cell);
+    });
     minimapCtx.fillStyle = "#f0c85a";
     minimapCtx.fillRect(offsetX + state.stairs.x * cell, offsetY + state.stairs.y * cell, cell, cell);
     state.monsters.forEach((monster) => {
@@ -2277,6 +2667,7 @@
     ctx.lineTo(p.x + view.tileW * 0.76, p.y + view.rowStep * 0.54);
     ctx.stroke();
     ctx.restore();
+    drawTerrainOverlayAt(x, y, p);
   }
 
   function drawWallBlock(p, x, y) {
@@ -2343,6 +2734,7 @@
 
   function drawEntities() {
     const entities = [
+      ...state.traps.map((trap) => ({ kind: "trap", x: trap.x, y: trap.y, draw: () => drawTrap(trap), priority: 0 })),
       { kind: "stairs", x: state.stairs.x, y: state.stairs.y, draw: () => drawStairs(state.stairs.x, state.stairs.y), priority: 0 },
       ...state.itemsOnGround.map((item) => ({ kind: "item", x: item.x, y: item.y, draw: () => drawItem(item), priority: 1 })),
       ...state.monsters.map((monster) => ({ kind: "monster", x: monster.x, y: monster.y, draw: () => drawMonster(monster), priority: 2 })),
@@ -2351,6 +2743,54 @@
     entities
       .sort((a, b) => a.y - b.y || a.x - b.x || a.priority - b.priority)
       .forEach((entity) => entity.draw());
+  }
+
+  function drawTerrainOverlayAt(x, y, p = tileToScreen(x, y)) {
+    const terrain = terrainAt(x, y);
+    if (!terrain) {
+      return;
+    }
+    const fill = terrain.type === "poison_pool" ? "rgba(95, 174, 99, 0.34)" : "rgba(95, 174, 99, 0.22)";
+    const stroke = terrain.type === "poison_pool" ? "rgba(122, 218, 128, 0.55)" : "rgba(122, 218, 128, 0.42)";
+    drawTiltTile(p, fill, stroke, 8);
+    ctx.fillStyle = "rgba(30, 72, 40, 0.4)";
+    ctx.beginPath();
+    ctx.ellipse(p.x + view.tileW * 0.48, p.y + view.rowStep * 0.58, view.tileW * 0.18, view.rowStep * 0.14, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#d8f2da";
+    ctx.font = `800 ${Math.max(11, view.tileW * 0.18)}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(terrain.icon || "~", p.x + view.tileW * 0.5, p.y + view.rowStep * 0.56);
+  }
+
+  function drawTrap(trap) {
+    const p = tileToScreen(trap.x, trap.y);
+    const size = view.tileW;
+    const cx = p.x + size * 0.5;
+    const cy = p.y + view.rowStep * 0.5;
+    drawTiltTile(p, `${trap.color}22`, `${trap.color}66`, 14);
+    ctx.fillStyle = trap.color;
+    if (trap.type === "spike_trap") {
+      for (let index = 0; index < 3; index += 1) {
+        const offset = (index - 1) * size * 0.1;
+        ctx.beginPath();
+        ctx.moveTo(cx + offset, cy - size * 0.12);
+        ctx.lineTo(cx - size * 0.06 + offset, cy + size * 0.08);
+        ctx.lineTo(cx + size * 0.06 + offset, cy + size * 0.08);
+        ctx.closePath();
+        ctx.fill();
+      }
+      return;
+    }
+    ctx.beginPath();
+    ctx.arc(cx, cy, size * 0.14, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#081014";
+    ctx.font = `800 ${Math.max(12, size * 0.2)}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(trap.icon || "?", cx, cy + 1);
   }
 
   function drawStairs(x, y) {
