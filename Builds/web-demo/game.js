@@ -1,11 +1,23 @@
 (() => {
   const CONFIG_URL = "../../Data/config/web_demo_balance.json";
   const DEFAULT_CONFIG = {
-    version: "v0.2",
+    version: "v0.3",
     dungeon: {
       maxFloors: 3,
       width: 15,
       height: 12,
+      generation: {
+        enabled: true,
+        roomCount: [4, 6],
+        roomWidth: [3, 6],
+        roomHeight: [3, 4],
+        floorRules: [
+          { monsters: [2, 3], potion: [1, 1], food: [1, 1], strategyItems: [1, 2] },
+          { monsters: [3, 4], potion: [1, 1], food: [1, 1], strategyItems: [2, 2] },
+          { monsters: [4, 5], potion: [1, 1], food: [1, 2], strategyItems: [2, 3] }
+        ],
+        strategyItemTypes: ["teleport", "sleep", "fireball", "swap"]
+      },
       floors: [
         {
           name: "石苔入口",
@@ -64,7 +76,7 @@
       maxHp: 20,
       attack: 4,
       maxSatiety: 100,
-      startingSatiety: 75
+      startingSatiety: 100
     },
     monster: {
       name: "Slime",
@@ -84,7 +96,7 @@
       food: {
         name: "食物",
         key: "F",
-        satiety: 35
+        satiety: 50
       },
       teleport: {
         name: "传送卷轴",
@@ -108,6 +120,14 @@
     },
     log: {
       maxEntries: 6
+    },
+    hunger: {
+      enabled: true,
+      satietyLossInterval: 5,
+      satietyLoss: 1,
+      lowThreshold: 25,
+      starvationDamageInterval: 5,
+      starvationDamage: 1
     }
   };
 
@@ -242,6 +262,9 @@
       },
       inventory: createEmptyInventory(),
       turn: 0,
+      hungerCounter: 0,
+      starvationCounter: 0,
+      lowSatietyWarned: false,
       kills: 0,
       itemsUsed: 0,
       messages: [],
@@ -250,7 +273,7 @@
     };
     state = nextState;
     loadFloor(0);
-    addMessage("第 1 层开始。寻找楼梯，别被怪物贴身拖死。");
+    addMessage("第 1 层开始。随机迷宫已生成，注意满腹度。");
     return nextState;
   }
 
@@ -262,8 +285,22 @@
   }
 
   function loadFloor(floorIndex) {
+    if (config.dungeon.generation && config.dungeon.generation.enabled) {
+      const generatedFloor = generateDungeon(floorIndex);
+      if (generatedFloor) {
+        applyFloorState(generatedFloor, floorIndex);
+        return;
+      }
+      addMessage("随机迷宫生成失败，使用固定备用地图。");
+    }
+
     const floors = config.dungeon.floors && config.dungeon.floors.length ? config.dungeon.floors : DEFAULT_CONFIG.dungeon.floors;
     const floorData = floors[Math.min(floorIndex, floors.length - 1)];
+    const parsedFloor = parseFixedFloor(floorData, floorIndex);
+    applyFloorState(parsedFloor, floorIndex);
+  }
+
+  function parseFixedFloor(floorData, floorIndex) {
     const rows = floorData.rows;
     const height = rows.length;
     const width = rows[0].length;
@@ -297,19 +334,260 @@
       }
     }
 
+    return {
+      name: floorData.name || `第 ${floorIndex + 1} 层`,
+      width,
+      height,
+      tiles,
+      monsters,
+      itemsOnGround,
+      stairs: stairs || { x: width - 2, y: height - 2 },
+      playerStart: playerStart || { x: 1, y: 1 }
+    };
+  }
+
+  function applyFloorState(floorData, floorIndex) {
     state.floorIndex = floorIndex;
     state.floor = floorIndex + 1;
     state.floorName = floorData.name || `第 ${state.floor} 层`;
-    state.width = width;
-    state.height = height;
-    state.tiles = tiles;
-    state.monsters = monsters;
-    state.itemsOnGround = itemsOnGround;
-    state.stairs = stairs || { x: width - 2, y: height - 2 };
-    state.player.x = playerStart ? playerStart.x : 1;
-    state.player.y = playerStart ? playerStart.y : 1;
+    state.width = floorData.width;
+    state.height = floorData.height;
+    state.tiles = floorData.tiles;
+    state.monsters = floorData.monsters;
+    state.itemsOnGround = floorData.itemsOnGround;
+    state.stairs = floorData.stairs;
+    state.player.x = floorData.playerStart.x;
+    state.player.y = floorData.playerStart.y;
     state.player.facing = "down";
     resizeCanvas();
+  }
+
+  function generateDungeon(floorIndex) {
+    const generation = config.dungeon.generation;
+    const width = config.dungeon.width || DEFAULT_CONFIG.dungeon.width;
+    const height = config.dungeon.height || DEFAULT_CONFIG.dungeon.height;
+    const tiles = Array.from({ length: width * height }, () => "wall");
+    const rooms = generateRooms(width, height, generation);
+
+    if (rooms.length < 2) {
+      return null;
+    }
+
+    rooms.forEach((room) => carveRoom(tiles, width, room));
+    connectRooms(tiles, width, rooms);
+
+    const playerStart = roomCenter(rooms[0]);
+    const stairsRoom = findFarthestRoom(rooms, playerStart);
+    const stairs = roomCenter(stairsRoom);
+    const occupied = new Set([keyOf(playerStart.x, playerStart.y), keyOf(stairs.x, stairs.y)]);
+    const rules = getFloorRules(floorIndex);
+    const monsters = [];
+    const itemsOnGround = [];
+
+    placeMonsters(monsters, occupied, tiles, width, height, randomFromRange(rules.monsters), floorIndex, playerStart);
+    placeItems(itemsOnGround, occupied, tiles, width, height, "potion", randomFromRange(rules.potion), floorIndex);
+    placeItems(itemsOnGround, occupied, tiles, width, height, "food", randomFromRange(rules.food), floorIndex);
+    placeStrategyItems(itemsOnGround, occupied, tiles, width, height, randomFromRange(rules.strategyItems), floorIndex);
+
+    return {
+      name: `随机迷宫 ${floorIndex + 1}F`,
+      width,
+      height,
+      tiles,
+      monsters,
+      itemsOnGround,
+      stairs,
+      playerStart
+    };
+  }
+
+  function generateRooms(width, height, generation) {
+    const targetCount = randomFromRange(generation.roomCount);
+    const rooms = [];
+    let attempts = 0;
+    while (rooms.length < targetCount && attempts < 120) {
+      attempts += 1;
+      const roomWidth = randomFromRange(generation.roomWidth);
+      const roomHeight = randomFromRange(generation.roomHeight);
+      const x = randomInt(1, width - roomWidth - 1);
+      const y = randomInt(1, height - roomHeight - 1);
+      const room = { x, y, width: roomWidth, height: roomHeight };
+      if (rooms.every((other) => !roomsOverlap(room, other))) {
+        rooms.push(room);
+      }
+    }
+    if (rooms.length < 3) {
+      return fallbackRooms(width, height, targetCount);
+    }
+    return rooms;
+  }
+
+  function roomsOverlap(a, b) {
+    return !(
+      a.x + a.width < b.x ||
+      b.x + b.width < a.x ||
+      a.y + a.height < b.y ||
+      b.y + b.height < a.y
+    );
+  }
+
+  function fallbackRooms(width, height, targetCount) {
+    const candidates = [
+      { x: 1, y: 1, width: 4, height: 3 },
+      { x: Math.max(6, width - 8), y: 1, width: 4, height: 3 },
+      { x: 1, y: Math.max(5, height - 6), width: 4, height: 3 },
+      { x: Math.max(6, width - 8), y: Math.max(5, height - 6), width: 4, height: 3 },
+      { x: Math.floor(width / 2) - 2, y: Math.floor(height / 2) - 1, width: 5, height: 3 },
+      { x: width - 5, y: height - 4, width: 3, height: 3 }
+    ].map((room) => ({
+      x: clamp(room.x, 1, width - room.width - 1),
+      y: clamp(room.y, 1, height - room.height - 1),
+      width: room.width,
+      height: room.height
+    }));
+
+    return shuffle(candidates).slice(0, Math.max(3, Math.min(targetCount, candidates.length)));
+  }
+
+  function shuffle(values) {
+    const copy = [...values];
+    for (let index = copy.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      [copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]];
+    }
+    return copy;
+  }
+
+  function carveRoom(tiles, width, room) {
+    for (let y = room.y; y < room.y + room.height; y += 1) {
+      for (let x = room.x; x < room.x + room.width; x += 1) {
+        setGeneratedTile(tiles, width, x, y, "floor");
+      }
+    }
+  }
+
+  function connectRooms(tiles, width, rooms) {
+    for (let index = 1; index < rooms.length; index += 1) {
+      const a = roomCenter(rooms[index - 1]);
+      const b = roomCenter(rooms[index]);
+      if (Math.random() < 0.5) {
+        carveHorizontal(tiles, width, a.x, b.x, a.y);
+        carveVertical(tiles, width, a.y, b.y, b.x);
+      } else {
+        carveVertical(tiles, width, a.y, b.y, a.x);
+        carveHorizontal(tiles, width, a.x, b.x, b.y);
+      }
+    }
+  }
+
+  function carveHorizontal(tiles, width, fromX, toX, y) {
+    for (let x = Math.min(fromX, toX); x <= Math.max(fromX, toX); x += 1) {
+      setGeneratedTile(tiles, width, x, y, "floor");
+    }
+  }
+
+  function carveVertical(tiles, width, fromY, toY, x) {
+    for (let y = Math.min(fromY, toY); y <= Math.max(fromY, toY); y += 1) {
+      setGeneratedTile(tiles, width, x, y, "floor");
+    }
+  }
+
+  function setGeneratedTile(tiles, width, x, y, value) {
+    tiles[y * width + x] = value;
+  }
+
+  function roomCenter(room) {
+    return {
+      x: Math.floor(room.x + room.width / 2),
+      y: Math.floor(room.y + room.height / 2)
+    };
+  }
+
+  function findFarthestRoom(rooms, point) {
+    return rooms
+      .slice(1)
+      .sort((a, b) => {
+        const centerA = roomCenter(a);
+        const centerB = roomCenter(b);
+        return manhattan(centerB.x, centerB.y, point.x, point.y) - manhattan(centerA.x, centerA.y, point.x, point.y);
+      })[0] || rooms[rooms.length - 1];
+  }
+
+  function getFloorRules(floorIndex) {
+    const rules = config.dungeon.generation.floorRules || DEFAULT_CONFIG.dungeon.generation.floorRules;
+    return rules[Math.min(floorIndex, rules.length - 1)];
+  }
+
+  function randomFromRange(range) {
+    if (!Array.isArray(range)) {
+      return Number(range) || 0;
+    }
+    return randomInt(range[0], range[1]);
+  }
+
+  function randomInt(min, max) {
+    return Math.floor(min + Math.random() * (max - min + 1));
+  }
+
+  function keyOf(x, y) {
+    return `${x},${y}`;
+  }
+
+  function placeMonsters(monsters, occupied, tiles, width, height, count, floorIndex, playerStart) {
+    const minPlayerDistance = Math.max(3, 5 - floorIndex);
+    for (let index = 0; index < count; index += 1) {
+      const cell = takeRandomFloorCell(tiles, width, height, occupied, (candidate) => (
+        manhattan(candidate.x, candidate.y, playerStart.x, playerStart.y) >= minPlayerDistance
+      ));
+      if (!cell) {
+        return;
+      }
+      occupied.add(keyOf(cell.x, cell.y));
+      monsters.push(createMonster(cell.x, cell.y, `${floorIndex}_${index}`));
+    }
+  }
+
+  function placeItems(itemsOnGround, occupied, tiles, width, height, type, count, floorIndex) {
+    for (let index = 0; index < count; index += 1) {
+      const cell = takeRandomFloorCell(tiles, width, height, occupied);
+      if (!cell) {
+        return;
+      }
+      occupied.add(keyOf(cell.x, cell.y));
+      itemsOnGround.push({
+        id: `item_${floorIndex}_${type}_${index}_${Date.now()}`,
+        type,
+        x: cell.x,
+        y: cell.y
+      });
+    }
+  }
+
+  function placeStrategyItems(itemsOnGround, occupied, tiles, width, height, count, floorIndex) {
+    const types = config.dungeon.generation.strategyItemTypes || DEFAULT_CONFIG.dungeon.generation.strategyItemTypes;
+    for (let index = 0; index < count; index += 1) {
+      placeItems(itemsOnGround, occupied, tiles, width, height, types[index % types.length], 1, floorIndex);
+    }
+  }
+
+  function takeRandomFloorCell(tiles, width, height, occupied, predicate = null) {
+    const candidates = [];
+    for (let y = 1; y < height - 1; y += 1) {
+      for (let x = 1; x < width - 1; x += 1) {
+        const candidate = { x, y };
+        if (tiles[y * width + x] === "floor" && !occupied.has(keyOf(x, y)) && (!predicate || predicate(candidate))) {
+          candidates.push(candidate);
+        }
+      }
+    }
+
+    if (candidates.length === 0) {
+      if (predicate) {
+        return takeRandomFloorCell(tiles, width, height, occupied, null);
+      }
+      return null;
+    }
+    return candidates[Math.floor(Math.random() * candidates.length)];
   }
 
   function createMonster(x, y, index) {
@@ -496,7 +774,10 @@
     state.player.satiety = Math.min(state.player.maxSatiety, state.player.satiety + item.satiety);
     consumeItem("food");
     addFloater(state.player.x, state.player.y, `+${state.player.satiety - before}`, "#f2c85b");
-    addMessage(`吃下食物，满腹度恢复 ${state.player.satiety - before}。v0.2 不会因饥饿死亡。`);
+    if (state.player.satiety > getHungerConfig().lowThreshold) {
+      state.lowSatietyWarned = false;
+    }
+    addMessage(`吃下食物，满腹度恢复 ${state.player.satiety - before}。`);
     advanceTurn();
   }
 
@@ -662,6 +943,11 @@
     }
 
     state.turn += 1;
+    applyHunger();
+    if (state.gameOver) {
+      updateUi();
+      return;
+    }
     if (state.floor >= config.dungeon.maxFloors) {
       finishGame(true, "你穿过第 3 层终点，完成了最小迷宫挑战。");
       return;
@@ -675,10 +961,55 @@
 
   function advanceTurn() {
     state.turn += 1;
+    applyHunger();
+    if (state.gameOver) {
+      updateUi();
+      return;
+    }
     monstersAct();
     updateUi();
     if (!state.gameOver) {
       checkLowHp();
+    }
+  }
+
+  function getHungerConfig() {
+    return config.hunger || DEFAULT_CONFIG.hunger;
+  }
+
+  function applyHunger() {
+    const hunger = getHungerConfig();
+    if (!hunger || !hunger.enabled) {
+      return;
+    }
+
+    if (state.player.satiety > 0) {
+      state.hungerCounter += 1;
+      if (state.hungerCounter >= hunger.satietyLossInterval) {
+        state.hungerCounter = 0;
+        state.player.satiety = Math.max(0, state.player.satiety - hunger.satietyLoss);
+        if (state.player.satiety <= hunger.lowThreshold && !state.lowSatietyWarned) {
+          state.lowSatietyWarned = true;
+          addMessage("满腹度很低，继续探索会有危险。");
+        }
+        if (state.player.satiety === 0) {
+          addMessage("满腹度归零，接下来饥饿会伤害 HP。");
+        }
+      }
+      return;
+    }
+
+    state.starvationCounter += 1;
+    if (state.starvationCounter >= hunger.starvationDamageInterval) {
+      state.starvationCounter = 0;
+      state.player.hp = Math.max(0, state.player.hp - hunger.starvationDamage);
+      state.player.hitFlash = 0.25;
+      addFloater(state.player.x, state.player.y, `-${hunger.starvationDamage}`, "#df6657");
+      addMessage(`饥饿造成 ${hunger.starvationDamage} 点伤害。`);
+      if (state.player.hp <= 0) {
+        state.deathReason = "因饥饿倒下，HP 归零。";
+        finishGame(false, state.deathReason);
+      }
     }
   }
 
@@ -806,7 +1137,10 @@
     if (state.monsters.some((monster) => manhattan(monster.x, monster.y, state.player.x, state.player.y) === 1)) {
       return "目标：怪物贴身了。移动方向可以攻击，也可以用药或走位。";
     }
-    return "目标：探索迷宫，找楼梯，用卷轴和杖解决危险局面。";
+    if (state.player.satiety <= getHungerConfig().lowThreshold) {
+      return "目标：满腹度很低。吃食物、减少绕路，尽快决定搜刮还是下楼。";
+    }
+    return "目标：随机探索，搜刮道具，但别让满腹度拖垮你。";
   }
 
   function updateUi() {
@@ -819,6 +1153,7 @@
     ui.turn.textContent = `Turn ${state.turn}`;
     ui.potion.textContent = String(state.inventory.potion);
     ui.satiety.textContent = `${state.player.satiety} / ${state.player.maxSatiety}`;
+    ui.satiety.style.color = state.player.satiety <= getHungerConfig().lowThreshold ? "#df6657" : "#7fb7d7";
     ui.objective.textContent = getObjective();
     ui.log.innerHTML = state.messages.map((message) => `<div>${escapeHtml(message)}</div>`).join("");
 
@@ -862,7 +1197,7 @@
       case "potion":
         return "H：恢复 HP，成功使用后推进回合";
       case "food":
-        return "F：恢复满腹度；v0.2 不会因饥饿死亡";
+        return "F：恢复满腹度，延长探索时间";
       case "teleport":
         return "T：随机传送到当前层安全地板";
       case "sleep":

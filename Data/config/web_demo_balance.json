@@ -1,9 +1,36 @@
 {
-  "version": "v0.2",
+  "version": "v0.3",
   "dungeon": {
     "maxFloors": 3,
     "width": 15,
     "height": 12,
+    "generation": {
+      "enabled": true,
+      "roomCount": [4, 6],
+      "roomWidth": [3, 6],
+      "roomHeight": [3, 4],
+      "floorRules": [
+        {
+          "monsters": [2, 3],
+          "potion": [1, 1],
+          "food": [1, 1],
+          "strategyItems": [1, 2]
+        },
+        {
+          "monsters": [3, 4],
+          "potion": [1, 1],
+          "food": [1, 1],
+          "strategyItems": [2, 2]
+        },
+        {
+          "monsters": [4, 5],
+          "potion": [1, 1],
+          "food": [1, 2],
+          "strategyItems": [2, 3]
+        }
+      ],
+      "strategyItemTypes": ["teleport", "sleep", "fireball", "swap"]
+    },
     "floors": [
       {
         "name": "石苔入口",
@@ -62,7 +89,7 @@
     "maxHp": 20,
     "attack": 4,
     "maxSatiety": 100,
-    "startingSatiety": 75
+    "startingSatiety": 100
   },
   "monster": {
     "name": "Slime",
@@ -82,7 +109,7 @@
     "food": {
       "name": "食物",
       "key": "F",
-      "satiety": 35
+      "satiety": 50
     },
     "teleport": {
       "name": "传送卷轴",
@@ -106,5 +133,13 @@
   },
   "log": {
     "maxEntries": 6
+  },
+  "hunger": {
+    "enabled": true,
+    "satietyLossInterval": 5,
+    "satietyLoss": 1,
+    "lowThreshold": 25,
+    "starvationDamageInterval": 5,
+    "starvationDamage": 1
   }
 }
