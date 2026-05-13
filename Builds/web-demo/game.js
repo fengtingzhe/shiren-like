@@ -1,7 +1,7 @@
 ﻿(() => {
   const CONFIG_URL = "../../Data/config/web_demo_balance.json";
   const DEFAULT_CONFIG = {
-    version: "v0.8",
+    version: "v0.9",
     dungeon: {
       maxFloors: 3,
       width: 36,
@@ -289,6 +289,16 @@
         sleep: { damage: 0, sleepTurns: 3 },
         fireball: { damage: 3 },
         swap: { damage: 2 }
+      }
+    },
+    identification: {
+      enabled: true,
+      unidentifiedTypes: ["teleport", "sleep", "fireball", "swap"],
+      identifyOnUse: true,
+      identifyOnThrow: true,
+      unknownNames: {
+        scroll: ["褪色卷轴", "蓝纹卷轴", "破旧卷轴", "星印卷轴"],
+        wand: ["弯曲木杖", "裂纹木杖", "青铜木杖", "黑曜木杖"]
       }
     },
     hazards: {
@@ -610,6 +620,7 @@
       },
       inventory: createEmptyInventory(),
       inventoryEquipment: [],
+      identification: createIdentificationState(),
       turn: 0,
       hungerCounter: 0,
       starvationCounter: 0,
@@ -639,6 +650,117 @@
 
   function getThrowingConfig() {
     return config.throwing || DEFAULT_CONFIG.throwing;
+  }
+
+  function getIdentificationConfig() {
+    return config.identification || DEFAULT_CONFIG.identification || {
+      enabled: false,
+      unidentifiedTypes: [],
+      identifyOnUse: true,
+      identifyOnThrow: true,
+      unknownNames: {}
+    };
+  }
+
+  function getItemCategory(type) {
+    if (type === "teleport" || type === "sleep") {
+      return "scroll";
+    }
+    if (type === "fireball" || type === "swap") {
+      return "wand";
+    }
+    return "known";
+  }
+
+  function getFallbackUnknownName(category) {
+    if (category === "scroll") {
+      return "未识别卷轴";
+    }
+    if (category === "wand") {
+      return "未识别木杖";
+    }
+    return "未知物品";
+  }
+
+  function createIdentificationState() {
+    const identification = getIdentificationConfig();
+    const nextState = {
+      knownTypes: {},
+      unknownNamesByType: {}
+    };
+    if (!identification || identification.enabled === false) {
+      return nextState;
+    }
+    const pools = {
+      scroll: shuffle([...(identification.unknownNames?.scroll || [])]),
+      wand: shuffle([...(identification.unknownNames?.wand || [])])
+    };
+    (identification.unidentifiedTypes || []).forEach((type) => {
+      nextState.knownTypes[type] = false;
+      const category = getItemCategory(type);
+      const pool = pools[category] || [];
+      nextState.unknownNamesByType[type] = pool.shift() || getFallbackUnknownName(category);
+    });
+    return nextState;
+  }
+
+  function isIdentificationEnabled() {
+    const identification = getIdentificationConfig();
+    return !!identification && identification.enabled !== false;
+  }
+
+  function isUnidentifiedType(type) {
+    if (!isIdentificationEnabled()) {
+      return false;
+    }
+    return (getIdentificationConfig().unidentifiedTypes || []).includes(type);
+  }
+
+  function isItemIdentified(type) {
+    if (!isUnidentifiedType(type)) {
+      return true;
+    }
+    return !!(state && state.identification && state.identification.knownTypes[type]);
+  }
+
+  function getRealItemName(type) {
+    return getItemConfig(type).name || ITEM_META[type].label;
+  }
+
+  function getUnknownNameForType(type) {
+    const category = getItemCategory(type);
+    return state && state.identification && state.identification.unknownNamesByType[type]
+      ? state.identification.unknownNamesByType[type]
+      : getFallbackUnknownName(category);
+  }
+
+  function getItemDisplayName(type) {
+    return isItemIdentified(type) ? getRealItemName(type) : getUnknownNameForType(type);
+  }
+
+  function getItemDisplayIcon(type) {
+    return isItemIdentified(type) ? ITEM_META[type].icon : "?";
+  }
+
+  function identifyItemType(type, reason = "use") {
+    if (!state || !isUnidentifiedType(type) || isItemIdentified(type)) {
+      return null;
+    }
+    const result = {
+      type,
+      reason,
+      unknownName: getUnknownNameForType(type),
+      realName: getRealItemName(type)
+    };
+    state.identification.knownTypes[type] = true;
+    return result;
+  }
+
+  function announceIdentification(result) {
+    if (!result) {
+      return;
+    }
+    addMessage(`${result.unknownName}的效果原来是${result.realName}。之后同类道具会显示真实名称。`);
   }
 
   function getInventoryCapacity() {
@@ -704,8 +826,8 @@
       return {
         kind: "consumable",
         type: reference,
-        name: itemLabel(reference),
-        icon: ITEM_META[reference].icon,
+        name: getItemDisplayName(reference),
+        icon: getItemDisplayIcon(reference),
         count: 1
       };
     }
@@ -1813,7 +1935,7 @@
   }
 
   function itemLabel(type) {
-    return getItemConfig(type).name || ITEM_META[type].label;
+    return getItemDisplayName(type);
   }
 
   function pickupItem() {
@@ -1894,10 +2016,10 @@
         key: `consumable:${type}`,
         kind: "consumable",
         type,
-        name: itemLabel(type),
+        name: getItemDisplayName(type),
         count: state.inventory[type],
-        summary: `x${state.inventory[type]}`,
-        icon: ITEM_META[type].icon
+        summary: isItemIdentified(type) ? `x${state.inventory[type]}` : `x${state.inventory[type]} · 未识别`,
+        icon: getItemDisplayIcon(type)
       }));
     const equipments = state.inventoryEquipment.map((item) => ({
       key: `equipment:${item.id}`,
@@ -2104,6 +2226,9 @@
     addMessage(`你投掷了${thrownItem.name}。`);
     if (result.hitMonster) {
       applyThrownItemEffect(thrownItem, result.hitMonster);
+      if (kind === "consumable" && getIdentificationConfig().identifyOnThrow !== false) {
+        announceIdentification(identifyItemType(thrownItem.type, "throw"));
+      }
       if (result.hitMonster.hp <= 0) {
         state.monsters = state.monsters.filter((monster) => monster !== result.hitMonster);
         state.kills += 1;
@@ -2116,6 +2241,9 @@
       addMessage(`${thrownItem.name}落在了地上。`);
       advanceTurn();
       return;
+    }
+    if (kind === "consumable" && getIdentificationConfig().identifyOnThrow !== false) {
+      announceIdentification(identifyItemType(thrownItem.type, "throw"));
     }
     addMessage(result.blocked ? "投掷物撞到墙后消失了。" : "投掷物飞出后消失了。");
     advanceTurn();
@@ -2193,7 +2321,7 @@
       return;
     }
     if (!hasItem("teleport")) {
-      addMessage("没有传送卷轴。");
+      addMessage(`没有${getItemDisplayName("teleport")}。`);
       updateUi();
       return;
     }
@@ -2208,7 +2336,10 @@
     state.player.y = destination.y;
     pickupItem();
     addFloater(state.player.x, state.player.y, "传送", "#7fb7d7");
-    addMessage("使用传送卷轴，脱离危险。");
+    addMessage(`使用${getItemDisplayName("teleport")}，脱离危险。`);
+    if (getIdentificationConfig().identifyOnUse !== false) {
+      announceIdentification(identifyItemType("teleport", "use"));
+    }
     advanceTurn();
   }
 
@@ -2279,7 +2410,7 @@
       return;
     }
     if (!hasItem("sleep")) {
-      addMessage("没有睡眠卷轴。");
+      addMessage(`没有${getItemDisplayName("sleep")}。`);
       updateUi();
       return;
     }
@@ -2295,7 +2426,10 @@
       monster.sleepTurns = Math.max(monster.sleepTurns, item.turns);
     });
     addFloater(state.player.x, state.player.y, "Zzz", "#a88ee8");
-    addMessage(`使用睡眠卷轴，${targets.length} 只怪物睡着了。`);
+    addMessage(`使用${getItemDisplayName("sleep")}，${targets.length} 只怪物睡着了。`);
+    if (getIdentificationConfig().identifyOnUse !== false) {
+      announceIdentification(identifyItemType("sleep", "use"));
+    }
     advanceTurn();
   }
 
@@ -2307,13 +2441,13 @@
       return;
     }
     if (!hasItem("fireball")) {
-      addMessage("没有火球杖。");
+      addMessage(`没有${getItemDisplayName("fireball")}。`);
       updateUi();
       return;
     }
     const target = findLineTarget();
     if (!target) {
-      addMessage("火球杖前方没有目标，不消耗道具。");
+      addMessage(`${getItemDisplayName("fireball")}前方没有目标，不消耗道具。`);
       updateUi();
       return;
     }
@@ -2322,7 +2456,10 @@
     target.hp -= item.damage;
     target.hitFlash = 0.25;
     addFloater(target.x, target.y, `-${item.damage}`, "#df6657");
-    addMessage(`火球命中 ${target.name}，造成 ${item.damage} 点伤害。`);
+    addMessage(`${getItemDisplayName("fireball")}命中 ${target.name}，造成 ${item.damage} 点伤害。`);
+    if (getIdentificationConfig().identifyOnUse !== false) {
+      announceIdentification(identifyItemType("fireball", "use"));
+    }
     if (target.hp <= 0) {
       state.monsters = state.monsters.filter((monster) => monster !== target);
       state.kills += 1;
@@ -2339,13 +2476,13 @@
       return;
     }
     if (!hasItem("swap")) {
-      addMessage("没有换位杖。");
+      addMessage(`没有${getItemDisplayName("swap")}。`);
       updateUi();
       return;
     }
     const target = findLineTarget();
     if (!target) {
-      addMessage("换位杖前方没有目标，不消耗道具。");
+      addMessage(`${getItemDisplayName("swap")}前方没有目标，不消耗道具。`);
       updateUi();
       return;
     }
@@ -2358,7 +2495,10 @@
     target.y = playerY;
     pickupItem();
     addFloater(state.player.x, state.player.y, "鎹綅", "#f08a54");
-    addMessage(`使用换位杖，与 ${target.name} 交换位置。`);
+    addMessage(`使用${getItemDisplayName("swap")}，与 ${target.name} 交换位置。`);
+    if (getIdentificationConfig().identifyOnUse !== false) {
+      announceIdentification(identifyItemType("swap", "use"));
+    }
     advanceTurn();
   }
 
@@ -3044,8 +3184,8 @@
       const count = state.inventory[type];
       button.innerHTML = `
         <span class="slot-key">${escapeHtml(item.key)}</span>
-        <span class="slot-icon" style="color: ${meta.color}">${escapeHtml(meta.icon)}</span>
-        <span class="slot-label">${escapeHtml(meta.label)}</span>
+        <span class="slot-icon" style="color: ${meta.color}">${escapeHtml(getItemDisplayIcon(type))}</span>
+        <span class="slot-label">${escapeHtml(getItemDisplayName(type))}</span>
         <span class="slot-count">x${count}</span>
       `;
       button.disabled = !state.running || state.paused || state.gameOver || count <= 0 || itemBlocked(type);
@@ -3164,15 +3304,21 @@
   }
 
   function getItemTitle(type) {
+    if (!isItemIdentified(type)) {
+      const item = getItemConfig(type);
+      const category = getItemCategory(type);
+      const genericName = category === "scroll" ? "未识别卷轴" : "未识别木杖";
+      return `${item.key}：${genericName}。使用成功或投掷结算后识别。`;
+    }
     switch (type) {
       case "potion":
-        return "H锛氭仮澶?HP锛屾垚鍔熶娇鐢ㄥ悗鎺ㄨ繘鍥炲悎";
+        return "H：恢复 HP，成功使用后推进回合";
       case "food":
         return "F：恢复饱腹度，延长探索时间";
       case "teleport":
         return "T：随机传送到当前层安全地板";
       case "sleep":
-        return "Z锛氳 4 鏍煎唴鎬墿鐫＄湢 3 鍥炲悎";
+        return "Z：让 4 格内怪物睡眠 3 回合";
       case "fireball":
         return "R：朝当前方向发射火球，未命中不消耗";
       case "swap":
@@ -3537,7 +3683,7 @@
     ctx.beginPath();
     ctx.ellipse(cx, p.y + view.rowStep * 0.78, size * 0.14, view.rowStep * 0.14, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = meta.color;
+    ctx.fillStyle = isItemIdentified(item.type) ? meta.color : "#9d906b";
     ctx.beginPath();
     ctx.roundRect(cx - size * 0.13, cy - size * 0.13, size * 0.26, size * 0.26, 5);
     ctx.fill();
@@ -3548,7 +3694,7 @@
     ctx.font = `800 ${Math.max(13, size * 0.22)}px sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(meta.icon, cx, cy + 1);
+    ctx.fillText(getItemDisplayIcon(item.type), cx, cy + 1);
   }
 
   function drawEquipment(item) {

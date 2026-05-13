@@ -1,5 +1,5 @@
 {
-  "version": "v0.8",
+  "version": "v0.9",
   "dungeon": {
     "maxFloors": 3,
     "width": 36,
@@ -230,6 +230,16 @@
       "sleep": { "damage": 0, "sleepTurns": 3 },
       "fireball": { "damage": 3 },
       "swap": { "damage": 2 }
+    }
+  },
+  "identification": {
+    "enabled": true,
+    "unidentifiedTypes": ["teleport", "sleep", "fireball", "swap"],
+    "identifyOnUse": true,
+    "identifyOnThrow": true,
+    "unknownNames": {
+      "scroll": ["褪色卷轴", "蓝纹卷轴", "破旧卷轴", "星印卷轴"],
+      "wand": ["弯曲木杖", "裂纹木杖", "青铜木杖", "黑曜木杖"]
     }
   },
   "hazards": {
