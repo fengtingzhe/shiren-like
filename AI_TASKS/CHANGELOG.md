@@ -1,5 +1,52 @@
 # CHANGELOG
 
+## 2026-05-13 / v0.1 / 最小可玩迷宫版
+
+### 本轮目标
+
+将旧 Web Demo 占位逻辑替换为最小可玩的 `shiren-like` / Mystery Dungeon 原型。
+
+---
+
+### 已完成
+
+- [x] 重写 `Builds/web-demo/index.html`，将 HUD 改为 HP、楼层、回合、回复药、行动按钮和 Console；
+- [x] 重写 `Builds/web-demo/styles.css`，改为清晰俯视格子迷宫界面；
+- [x] 重写 `Builds/web-demo/game.js`，实现格子移动、回合推进、怪物行动、普通攻击、回复药、楼梯和结算；
+- [x] 将 `Data/config/web_demo_balance.json` 改为 v0.1 迷宫、玩家、怪物和回复药配置；
+- [x] 更新 `Builds/web-demo/README.md`，记录 v0.1 运行方式、已实现内容和未实现内容；
+- [x] 更新 `Tests/web-demo-smoke.mjs`，检查 v0.1 文件、配置、核心逻辑和旧核心词清理；
+- [x] 更新 `AI_TASKS/CURRENT_TASK.md`；
+- [x] 更新 `AI_TASKS/DEV_LOG.md`；
+- [x] 更新 `AI_TASKS/NEXT_CODEX_PROMPT.md` 为 v0.2 建议草案。
+
+---
+
+### 本轮未做
+
+- [ ] 未加入饥饿；
+- [ ] 未加入完整背包；
+- [ ] 未加入未鉴定；
+- [ ] 未加入装备；
+- [ ] 未加入陷阱；
+- [ ] 未加入怪物屋；
+- [ ] 未加入壶；
+- [ ] 未加入商店；
+- [ ] 未创建 Godot 工程；
+- [ ] 未制作最终美术。
+
+---
+
+### 下一轮建议
+
+```text
+Web Demo v0.2 / 道具策略版
+```
+
+建议先完成 v0.1 试玩反馈，再决定 v0.2 的道具列表和简化背包范围。
+
+---
+
 ## 2026-05-13 / v0.0 / 项目重定向版
 
 ### 本轮目标

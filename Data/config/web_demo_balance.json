@@ -1,60 +1,77 @@
 {
-  "economy": {
-    "startingGold": 8,
-    "treeCost": 1,
-    "wallCost": 2,
-    "towerCost": 3,
-    "landmarkCost": 6,
-    "recruitCost": 1,
-    "chestMin": 3,
-    "chestMax": 5,
-    "dayIncomePerArcher": 1,
-    "landmarkDailyIncome": 2
-  },
-  "timing": {
-    "daySeconds": 75,
-    "duskSeconds": 15,
-    "nightSeconds": 24
+  "version": "v0.1",
+  "dungeon": {
+    "maxFloors": 3,
+    "width": 15,
+    "height": 12,
+    "floors": [
+      {
+        "name": "石苔入口",
+        "rows": [
+          "###############",
+          "#@.p..#...p...#",
+          "#.###.#.#####.#",
+          "#...#...#...#.#",
+          "###.#####.#.#.#",
+          "#...m.....#...#",
+          "#.#####.###.###",
+          "#.....#...#...#",
+          "#.###.###.#.#.#",
+          "#...#..p..#m#s#",
+          "#.............#",
+          "###############"
+        ]
+      },
+      {
+        "name": "回廊浅层",
+        "rows": [
+          "###############",
+          "#@p.#.....#...#",
+          "###.#.###.#.#.#",
+          "#...#.#p#...#.#",
+          "#.###.#.#####.#",
+          "#.....#...m...#",
+          "#.#######.###.#",
+          "#.#.....#...#.#",
+          "#.#.###.###.#.#",
+          "#...m.#..p..#s#",
+          "#.....#.....#.#",
+          "###############"
+        ]
+      },
+      {
+        "name": "试炼终点",
+        "rows": [
+          "###############",
+          "#@.p..#.......#",
+          "#.###.#.#####.#",
+          "#...#.#...p.#.#",
+          "###.#.###.#.#.#",
+          "#...#...#.#...#",
+          "#.#####.#.###.#",
+          "#...m...#...#.#",
+          "#.#########.#.#",
+          "#...p....m..#s#",
+          "#.............#",
+          "###############"
+        ]
+      }
+    ]
   },
   "player": {
-    "speed": 2.65,
-    "forestSpeedMultiplier": 0.68,
-    "interactRadius": 0.92
+    "maxHp": 20,
+    "attack": 4
   },
-  "workers": {
-    "initialWorkers": 1,
-    "initialArchers": 1,
-    "moveSpeed": 1.72,
-    "treeChopSeconds": 2.8,
-    "buildSeconds": 3.4
+  "monster": {
+    "name": "Slime",
+    "hp": 6,
+    "attack": 3
   },
-  "combat": {
-    "campHp": 14,
-    "wallHp": 8,
-    "enemyHp": 4,
-    "enemySpeed": 0.8,
-    "enemyDamage": 1,
-    "enemyAttackSeconds": 1.25,
-    "enemySpawnSeconds": 6,
-    "towerRange": 3.4,
-    "towerDamage": 2,
-    "towerFireSeconds": 1.35,
-    "archerRange": 2.7,
-    "archerDamage": 1,
-    "archerFireSeconds": 1.55
+  "potion": {
+    "name": "回复药",
+    "heal": 8
   },
-  "level": {
-    "width": 13,
-    "height": 9,
-    "camp": [5, 4],
-    "initialClearedRadius": 2,
-    "features": [
-      { "id": "west_chest", "type": "chest", "x": 2, "y": 2 },
-      { "id": "lost_vagrant", "type": "vagrant", "x": 3, "y": 6 },
-      { "id": "east_wall", "type": "wall", "x": 7, "y": 4 },
-      { "id": "north_tower", "type": "tower", "x": 8, "y": 3 },
-      { "id": "old_landmark", "type": "landmark", "x": 10, "y": 4 },
-      { "id": "danger_trace", "type": "danger", "x": 11, "y": 6 }
-    ]
+  "log": {
+    "maxEntries": 6
   }
 }

@@ -3,25 +3,28 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>kingdom-like Web Demo</title>
+    <title>shiren-like Web Demo</title>
     <link rel="stylesheet" href="./styles.css">
   </head>
   <body>
-    <main id="game-shell" aria-label="kingdom-like web demo">
-      <canvas id="game-canvas"></canvas>
+    <main id="game-shell" aria-label="shiren-like web demo">
+      <canvas id="game-canvas" aria-label="迷宫画面"></canvas>
 
-      <section id="hud" aria-label="game status">
+      <section id="hud" aria-label="游戏状态">
         <div class="status-strip">
-          <div class="pill coin-pill" aria-label="gold">
-            <span class="coin-mark"></span>
-            <strong id="gold-value">0</strong>
+          <div class="pill hp-pill" aria-label="HP">
+            <span>HP</span>
+            <strong id="hp-value">20 / 20</strong>
           </div>
-          <div class="pill" aria-label="day">
-            <span id="day-value">Day 1</span>
+          <div class="pill" aria-label="floor">
+            <span id="floor-value">1F</span>
           </div>
-          <div class="pill phase-pill" aria-label="phase">
-            <span id="phase-dot"></span>
-            <span id="phase-value">Day</span>
+          <div class="pill" aria-label="turn">
+            <span id="turn-value">Turn 0</span>
+          </div>
+          <div class="pill potion-pill" aria-label="potion count">
+            <span>药</span>
+            <strong id="potion-value">0</strong>
           </div>
           <button id="pause-button" class="icon-button" type="button" aria-label="pause">
             <span class="pause-icon"></span>
@@ -34,11 +37,20 @@
 
         <div id="objective" class="objective"></div>
         <div id="prompt" class="prompt is-hidden"></div>
-        <button id="action-button" class="action-button is-hidden" type="button">
-          <span class="coin-mark"></span>
-          <span id="action-label">投金币</span>
-        </button>
         <div id="event-log" class="event-log" aria-live="polite"></div>
+
+        <div class="quick-actions" aria-label="quick actions">
+          <button id="potion-button" class="action-button" type="button">H 回复药</button>
+          <button id="wait-button" class="action-button secondary" type="button">. 等待</button>
+          <button id="stairs-button" class="action-button secondary" type="button">E 下楼</button>
+        </div>
+
+        <div class="touch-pad" aria-label="direction controls">
+          <button class="pad-button pad-up" type="button" data-direction="up" aria-label="move up">↑</button>
+          <button class="pad-button pad-left" type="button" data-direction="left" aria-label="move left">←</button>
+          <button class="pad-button pad-right" type="button" data-direction="right" aria-label="move right">→</button>
+          <button class="pad-button pad-down" type="button" data-direction="down" aria-label="move down">↓</button>
+        </div>
       </section>
 
       <aside id="console-panel" class="console-panel" aria-label="console panel" aria-hidden="true">
@@ -48,34 +60,56 @@
             <span class="close-icon"></span>
           </button>
         </div>
-        <div class="console-control">
-          <label for="camera-zoom-slider">镜头缩放</label>
-          <div class="range-row">
-            <input id="camera-zoom-slider" type="range" min="0.5" max="50" step="0.1" value="1.2">
-            <strong id="camera-zoom-value">120%</strong>
-          </div>
-        </div>
+        <label class="toggle-row">
+          <input id="music-toggle" type="checkbox" checked>
+          <span>音乐</span>
+        </label>
+        <label class="toggle-row">
+          <input id="sfx-toggle" type="checkbox" checked>
+          <span>音效</span>
+        </label>
+        <label class="toggle-row">
+          <input id="fps-toggle" type="checkbox">
+          <span>显示 FPS</span>
+        </label>
+        <button id="console-pause-button" class="console-action" type="button">暂停 / 继续</button>
+        <button id="console-reset-button" class="console-action" type="button">重置 Demo</button>
+        <div id="fps-readout" class="fps-readout is-hidden">FPS 0</div>
       </aside>
 
       <section id="start-overlay" class="overlay">
         <div class="modal">
-          <h1>kingdom-like</h1>
-          <p>探索森林，投金币命令村民砍树、建造和升级，守住夜晚。</p>
+          <h1>shiren-like</h1>
+          <p>在三层迷宫中活下来。移动一格就是一回合，怪物会追击，回复药和楼梯是最重要的资源。</p>
           <button id="start-button" class="primary-button" type="button">
             <span class="play-icon"></span>
             开始 Demo
           </button>
-          <p class="control-note">WASD / 方向键移动，E / 空格投金币，也可以点击地面移动。</p>
+          <p class="control-note">WASD / 方向键移动，H 使用回复药，空格或句号等待，站在楼梯上按 E / Enter 下楼。</p>
         </div>
       </section>
 
       <section id="result-overlay" class="overlay is-hidden">
         <div class="modal">
-          <h2 id="result-title">Demo 完成</h2>
+          <h2 id="result-title">结算</h2>
           <p id="result-copy"></p>
+          <dl class="result-stats">
+            <div>
+              <dt>到达楼层</dt>
+              <dd id="result-floor">1F</dd>
+            </div>
+            <div>
+              <dt>击败怪物</dt>
+              <dd id="result-kills">0</dd>
+            </div>
+            <div>
+              <dt>使用回复药</dt>
+              <dd id="result-potions">0</dd>
+            </div>
+          </dl>
           <button id="restart-button" class="primary-button" type="button">
             <span class="restart-icon"></span>
-            再玩一次
+            再来一局
           </button>
         </div>
       </section>
