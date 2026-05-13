@@ -1,5 +1,5 @@
 {
-  "version": "v0.3",
+  "version": "v0.4",
   "dungeon": {
     "maxFloors": 3,
     "width": 15,

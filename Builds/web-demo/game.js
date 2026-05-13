@@ -1,7 +1,7 @@
 (() => {
   const CONFIG_URL = "../../Data/config/web_demo_balance.json";
   const DEFAULT_CONFIG = {
-    version: "v0.3",
+    version: "v0.4",
     dungeon: {
       maxFloors: 3,
       width: 15,
@@ -168,8 +168,12 @@
     musicToggle: document.getElementById("music-toggle"),
     sfxToggle: document.getElementById("sfx-toggle"),
     fpsToggle: document.getElementById("fps-toggle"),
-    fpsReadout: document.getElementById("fps-readout")
+    fpsReadout: document.getElementById("fps-readout"),
+    minimap: document.getElementById("minimap-canvas"),
+    enemyList: document.getElementById("enemy-list"),
+    turnOrder: document.getElementById("turn-order")
   };
+  const minimapCtx = ui.minimap ? ui.minimap.getContext("2d") : null;
 
   const DIRS = {
     up: { x: 0, y: -1 },
@@ -207,7 +211,9 @@
     width: 0,
     height: 0,
     dpr: 1,
-    tile: 44,
+    tileW: 72,
+    tileH: 38,
+    tileDepth: 26,
     originX: 0,
     originY: 0
   };
@@ -527,6 +533,10 @@
 
   function randomInt(min, max) {
     return Math.floor(min + Math.random() * (max - min + 1));
+  }
+
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
   }
 
   function keyOf(x, y) {
@@ -1165,6 +1175,7 @@
     }
 
     updateItemButtons();
+    updateTacticalPanels();
     ui.waitButton.disabled = !state.running || state.paused || state.gameOver;
     ui.stairsButton.disabled = !state.running || state.paused || state.gameOver || !isOnStairs();
     ui.pause.setAttribute("aria-label", state.paused ? "resume" : "pause");
@@ -1176,10 +1187,100 @@
       const button = ui[meta.button];
       const item = getItemConfig(type);
       const count = state.inventory[type];
-      button.textContent = `${item.key} ${meta.label} ${count}`;
+      button.innerHTML = `
+        <span class="slot-key">${escapeHtml(item.key)}</span>
+        <span class="slot-icon" style="color: ${meta.color}">${escapeHtml(meta.icon)}</span>
+        <span class="slot-label">${escapeHtml(meta.label)}</span>
+        <span class="slot-count">x${count}</span>
+      `;
       button.disabled = !state.running || state.paused || state.gameOver || count <= 0 || itemBlocked(type);
       button.title = getItemTitle(type);
     });
+  }
+
+  function updateTacticalPanels() {
+    drawMinimap();
+    updateEnemyPanel();
+  }
+
+  function drawMinimap() {
+    if (!minimapCtx || !ui.minimap || !state) {
+      return;
+    }
+    const rect = ui.minimap.getBoundingClientRect();
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    const width = Math.max(1, Math.floor(rect.width * dpr));
+    const height = Math.max(1, Math.floor(rect.height * dpr));
+    if (ui.minimap.width !== width || ui.minimap.height !== height) {
+      ui.minimap.width = width;
+      ui.minimap.height = height;
+    }
+    minimapCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    minimapCtx.clearRect(0, 0, rect.width, rect.height);
+    minimapCtx.fillStyle = "rgba(5, 7, 8, 0.86)";
+    minimapCtx.fillRect(0, 0, rect.width, rect.height);
+
+    const pad = 8;
+    const cell = Math.max(3, Math.floor(Math.min((rect.width - pad * 2) / state.width, (rect.height - pad * 2) / state.height)));
+    const offsetX = Math.floor((rect.width - state.width * cell) / 2);
+    const offsetY = Math.floor((rect.height - state.height * cell) / 2);
+
+    for (let y = 0; y < state.height; y += 1) {
+      for (let x = 0; x < state.width; x += 1) {
+        minimapCtx.fillStyle = getTile(x, y) === "wall" ? "rgba(73, 63, 48, 0.72)" : "rgba(116, 139, 91, 0.9)";
+        minimapCtx.fillRect(offsetX + x * cell, offsetY + y * cell, Math.max(1, cell - 1), Math.max(1, cell - 1));
+      }
+    }
+
+    state.itemsOnGround.forEach((item) => {
+      minimapCtx.fillStyle = ITEM_META[item.type].color;
+      minimapCtx.fillRect(offsetX + item.x * cell, offsetY + item.y * cell, cell, cell);
+    });
+    minimapCtx.fillStyle = "#f0c85a";
+    minimapCtx.fillRect(offsetX + state.stairs.x * cell, offsetY + state.stairs.y * cell, cell, cell);
+    state.monsters.forEach((monster) => {
+      minimapCtx.fillStyle = monster.sleepTurns > 0 ? "#a88ee8" : "#df6657";
+      minimapCtx.fillRect(offsetX + monster.x * cell, offsetY + monster.y * cell, cell, cell);
+    });
+    minimapCtx.fillStyle = "#74b9df";
+    minimapCtx.fillRect(offsetX + state.player.x * cell - 1, offsetY + state.player.y * cell - 1, cell + 2, cell + 2);
+  }
+
+  function updateEnemyPanel() {
+    if (!ui.enemyList || !ui.turnOrder || !state) {
+      return;
+    }
+    const sortedMonsters = [...state.monsters]
+      .sort((a, b) => manhattan(a.x, a.y, state.player.x, state.player.y) - manhattan(b.x, b.y, state.player.x, state.player.y))
+      .slice(0, 6);
+    const nextActors = [
+      { label: "你", className: "player" },
+      ...sortedMonsters.slice(0, 3).map((monster) => ({ label: monster.sleepTurns > 0 ? "Z" : "敌", className: "" }))
+    ];
+    ui.turnOrder.innerHTML = nextActors.map((actor) => (
+      `<span class="turn-chip ${actor.className}">${escapeHtml(actor.label)}</span>`
+    )).join("");
+
+    if (sortedMonsters.length === 0) {
+      ui.enemyList.innerHTML = '<div class="enemy-row"><span class="enemy-icon">0</span><div><div class="enemy-name">暂无可见敌人</div><div class="enemy-hp"><span style="--hp: 0%"></span></div></div><span class="enemy-status">安全</span></div>';
+      return;
+    }
+
+    ui.enemyList.innerHTML = sortedMonsters.map((monster) => {
+      const hpPercent = Math.max(0, Math.min(100, Math.round((monster.hp / monster.maxHp) * 100)));
+      const distance = manhattan(monster.x, monster.y, state.player.x, state.player.y);
+      const status = monster.sleepTurns > 0 ? `Z ${monster.sleepTurns}` : `${distance}格`;
+      return `
+        <div class="enemy-row">
+          <span class="enemy-icon">${monster.sleepTurns > 0 ? "Z" : "S"}</span>
+          <div>
+            <div class="enemy-name">${escapeHtml(monster.name)}</div>
+            <div class="enemy-hp"><span style="--hp: ${hpPercent}%"></span></div>
+          </div>
+          <span class="enemy-status">${escapeHtml(status)}</span>
+        </div>
+      `;
+    }).join("");
   }
 
   function itemBlocked(type) {
@@ -1230,27 +1331,59 @@
 
     const mapWidth = state ? state.width : config.dungeon.width;
     const mapHeight = state ? state.height : config.dungeon.height;
-    const topGap = rect.width <= 760 ? 178 : 122;
-    const bottomGap = rect.width <= 760 ? 170 : 124;
-    const availableW = Math.max(320, rect.width - 48);
-    const availableH = Math.max(260, rect.height - topGap - bottomGap);
-    view.tile = Math.floor(Math.max(26, Math.min(54, availableW / mapWidth, availableH / mapHeight)));
-    view.originX = Math.floor((rect.width - mapWidth * view.tile) / 2);
-    view.originY = Math.floor(topGap + (availableH - mapHeight * view.tile) / 2);
+    const compact = rect.width <= 760;
+    const leftGap = compact ? 18 : 330;
+    const rightGap = compact ? 18 : 304;
+    const topGap = compact ? 190 : 116;
+    const bottomGap = compact ? 210 : 118;
+    const playLeft = leftGap;
+    const playRight = Math.max(playLeft + 280, rect.width - rightGap);
+    const playTop = topGap;
+    const playBottom = Math.max(playTop + 220, rect.height - bottomGap);
+    const availableW = Math.max(280, playRight - playLeft);
+    const availableH = Math.max(220, playBottom - playTop);
+    const isoColumns = Math.max(1, mapWidth + mapHeight);
+    const widthLimitedTile = (availableW * 2) / isoColumns;
+    const heightLimitedTile = ((availableH - 36) * 2) / (isoColumns * 0.52);
+    view.tileW = Math.floor(clamp(Math.min(widthLimitedTile, heightLimitedTile), compact ? 42 : 58, compact ? 64 : 86));
+    view.tileH = Math.floor(view.tileW * 0.52);
+    view.tileDepth = Math.floor(view.tileH * 0.72);
+
+    const minIsoX = -(mapHeight - 1) * view.tileW / 2;
+    const maxIsoX = (mapWidth - 1) * view.tileW / 2;
+    const minIsoY = -view.tileDepth - view.tileH / 2;
+    const maxIsoY = (mapWidth + mapHeight - 2) * view.tileH / 2 + view.tileH / 2;
+    const isoWidth = maxIsoX - minIsoX;
+    const isoHeight = maxIsoY - minIsoY;
+    view.originX = Math.floor(playLeft + (availableW - isoWidth) / 2 - minIsoX);
+    view.originY = Math.floor(playTop + (availableH - isoHeight) / 2 - minIsoY);
+
+    if (state && state.player) {
+      const playerScreen = tileToScreen(state.player.x, state.player.y);
+      const targetX = playLeft + availableW * 0.5;
+      const targetY = playTop + availableH * 0.62;
+      view.originX += clamp(targetX - playerScreen.x, -availableW * 0.18, availableW * 0.18);
+      view.originY += clamp(targetY - playerScreen.y, -availableH * 0.2, availableH * 0.2);
+    }
+    drawMinimap();
   }
 
   function tileToScreen(x, y) {
     return {
-      x: view.originX + x * view.tile,
-      y: view.originY + y * view.tile
+      x: view.originX + (x - y) * view.tileW / 2,
+      y: view.originY + (x + y) * view.tileH / 2
     };
   }
 
   function screenToTile(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
+    const sx = clientX - rect.left - view.originX;
+    const sy = clientY - rect.top - view.originY;
+    const isoX = sx / (view.tileW / 2);
+    const isoY = sy / (view.tileH / 2);
     return {
-      x: Math.floor((clientX - rect.left - view.originX) / view.tile),
-      y: Math.floor((clientY - rect.top - view.originY) / view.tile)
+      x: Math.round((isoY + isoX) / 2),
+      y: Math.round((isoY - isoX) / 2)
     };
   }
 
@@ -1284,176 +1417,283 @@
 
   function drawBackground() {
     const gradient = ctx.createLinearGradient(0, 0, 0, view.height);
-    gradient.addColorStop(0, "#18232a");
-    gradient.addColorStop(0.52, "#11181c");
-    gradient.addColorStop(1, "#0c0f12");
+    gradient.addColorStop(0, "#151918");
+    gradient.addColorStop(0.55, "#0e1110");
+    gradient.addColorStop(1, "#070808");
     ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, view.width, view.height);
+
+    const vignette = ctx.createRadialGradient(view.width / 2, view.height * 0.52, view.height * 0.16, view.width / 2, view.height / 2, view.height * 0.76);
+    vignette.addColorStop(0, "rgba(0, 0, 0, 0)");
+    vignette.addColorStop(1, "rgba(0, 0, 0, 0.56)");
+    ctx.fillStyle = vignette;
     ctx.fillRect(0, 0, view.width, view.height);
   }
 
   function drawMap() {
     drawTiles();
-    drawStairs();
-    drawItems();
-    drawMonsters();
-    drawPlayer();
+    drawMoveRange();
+    drawThreatRange();
+    drawEntities();
   }
 
   function drawTiles() {
+    const cells = [];
     for (let y = 0; y < state.height; y += 1) {
       for (let x = 0; x < state.width; x += 1) {
-        drawTile(x, y, getTile(x, y));
+        cells.push({ x, y, tile: getTile(x, y) });
       }
     }
+    cells
+      .sort((a, b) => (a.x + a.y) - (b.x + b.y) || a.y - b.y)
+      .forEach((cell) => drawTile(cell.x, cell.y, cell.tile));
   }
 
   function drawTile(x, y, tile) {
     const p = tileToScreen(x, y);
-    const size = view.tile;
-    ctx.fillStyle = tile === "wall" ? "#2d3b46" : "#52634c";
-    ctx.fillRect(p.x, p.y, size, size);
-    ctx.strokeStyle = tile === "wall" ? "rgba(127, 183, 215, 0.18)" : "rgba(247, 241, 227, 0.12)";
-    ctx.lineWidth = 1;
-    ctx.strokeRect(p.x + 0.5, p.y + 0.5, size - 1, size - 1);
-
     if (tile === "wall") {
-      ctx.fillStyle = "rgba(0, 0, 0, 0.18)";
-      ctx.fillRect(p.x + 4, p.y + size - 8, size - 8, 4);
-      ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
-      ctx.fillRect(p.x + 4, p.y + 4, size - 8, 3);
+      drawWallBlock(p);
       return;
     }
 
-    ctx.fillStyle = "rgba(11, 15, 14, 0.12)";
-    ctx.fillRect(p.x + size * 0.18, p.y + size * 0.72, size * 0.28, 2);
-    ctx.fillRect(p.x + size * 0.58, p.y + size * 0.28, size * 0.2, 2);
+    drawIsoDiamond(p, "#526247", "rgba(246, 240, 223, 0.18)");
+    ctx.save();
+    clipIsoDiamond(p, 6);
+    ctx.strokeStyle = "rgba(28, 35, 27, 0.28)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(p.x - view.tileW * 0.2, p.y + view.tileH * 0.08);
+    ctx.lineTo(p.x + view.tileW * 0.12, p.y - view.tileH * 0.08);
+    ctx.moveTo(p.x + view.tileW * 0.18, p.y + view.tileH * 0.12);
+    ctx.lineTo(p.x + view.tileW * 0.32, p.y + view.tileH * 0.02);
+    ctx.stroke();
+    ctx.restore();
   }
 
-  function drawStairs() {
-    const p = tileToScreen(state.stairs.x, state.stairs.y);
-    const size = view.tile;
-    const cx = p.x + size / 2;
-    const cy = p.y + size / 2;
-    ctx.fillStyle = "rgba(242, 200, 91, 0.18)";
+  function drawWallBlock(p) {
+    const top = diamondPoints({ x: p.x, y: p.y - view.tileDepth }, 0);
+    const base = diamondPoints(p, 0);
+    drawPolygon([top.left, top.bottom, base.bottom, base.left], "#28322e", null);
+    drawPolygon([top.right, top.bottom, base.bottom, base.right], "#1d2628", null);
+    drawPolygon([top.top, top.right, top.bottom, top.left], "#475248", "rgba(246, 240, 223, 0.16)");
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.26)";
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.arc(cx, cy, size * 0.42, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = "#f2c85b";
+    ctx.moveTo(top.left.x, top.left.y);
+    ctx.lineTo(base.left.x, base.left.y);
+    ctx.moveTo(top.right.x, top.right.y);
+    ctx.lineTo(base.right.x, base.right.y);
+    ctx.stroke();
+  }
+
+  function drawMoveRange() {
+    if (!state.running || state.gameOver) {
+      return;
+    }
+    const cells = [];
+    for (let y = state.player.y - 1; y <= state.player.y + 1; y += 1) {
+      for (let x = state.player.x - 1; x <= state.player.x + 1; x += 1) {
+        if (manhattan(x, y, state.player.x, state.player.y) <= 1 && isWalkable(x, y)) {
+          cells.push({ x, y });
+        }
+      }
+    }
+    cells.forEach((cell) => drawRangeOverlay(cell.x, cell.y, "rgba(116, 185, 223, 0.28)", "rgba(116, 185, 223, 0.54)"));
+  }
+
+  function drawThreatRange() {
+    if (!state.running || state.gameOver) {
+      return;
+    }
+    const cells = new Set();
+    state.monsters.forEach((monster) => {
+      Object.values(DIRS).forEach((dir) => {
+        const x = monster.x + dir.x;
+        const y = monster.y + dir.y;
+        if (isWalkable(x, y)) {
+          cells.add(keyOf(x, y));
+        }
+      });
+    });
+    cells.forEach((key) => {
+      const [x, y] = key.split(",").map(Number);
+      drawRangeOverlay(x, y, "rgba(223, 102, 87, 0.24)", "rgba(223, 102, 87, 0.48)");
+    });
+  }
+
+  function drawRangeOverlay(x, y, fill, stroke) {
+    const p = tileToScreen(x, y);
+    drawIsoDiamond(p, fill, stroke, 5);
+  }
+
+  function drawEntities() {
+    const entities = [
+      { kind: "stairs", x: state.stairs.x, y: state.stairs.y, draw: () => drawStairs(state.stairs.x, state.stairs.y), priority: 0 },
+      ...state.itemsOnGround.map((item) => ({ kind: "item", x: item.x, y: item.y, draw: () => drawItem(item), priority: 1 })),
+      ...state.monsters.map((monster) => ({ kind: "monster", x: monster.x, y: monster.y, draw: () => drawMonster(monster), priority: 2 })),
+      { kind: "player", x: state.player.x, y: state.player.y, draw: drawPlayer, priority: 3 }
+    ];
+    entities
+      .sort((a, b) => (a.x + a.y) - (b.x + b.y) || a.priority - b.priority)
+      .forEach((entity) => entity.draw());
+  }
+
+  function drawStairs(x, y) {
+    const p = tileToScreen(x, y);
+    drawIsoDiamond(p, "rgba(240, 200, 90, 0.2)", "rgba(240, 200, 90, 0.78)", 4);
+    const size = view.tileW;
+    ctx.strokeStyle = "#f0c85a";
     ctx.lineWidth = 3;
     for (let index = 0; index < 4; index += 1) {
-      const y = cy - size * 0.2 + index * size * 0.12;
+      const yLine = p.y - view.tileH * 0.18 + index * view.tileH * 0.11;
       ctx.beginPath();
-      ctx.moveTo(cx - size * 0.24 + index * 2, y);
-      ctx.lineTo(cx + size * 0.24 - index * 2, y);
+      ctx.moveTo(p.x - size * 0.18 + index * 2, yLine);
+      ctx.lineTo(p.x + size * 0.18 - index * 2, yLine);
       ctx.stroke();
     }
+    ctx.fillStyle = "rgba(240, 200, 90, 0.18)";
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y + view.tileH * 0.1, size * 0.24, view.tileH * 0.24, 0, 0, Math.PI * 2);
+    ctx.fill();
   }
 
-  function drawItems() {
-    state.itemsOnGround.forEach((item) => {
-      const meta = ITEM_META[item.type];
-      const p = tileToScreen(item.x, item.y);
-      const size = view.tile;
-      const cx = p.x + size / 2;
-      const cy = p.y + size / 2;
-      ctx.fillStyle = `${meta.color}2e`;
-      ctx.beginPath();
-      ctx.arc(cx, cy, size * 0.28, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = meta.color;
-      ctx.beginPath();
-      ctx.roundRect(cx - size * 0.18, cy - size * 0.18, size * 0.36, size * 0.36, 5);
-      ctx.fill();
-      ctx.fillStyle = "#11171b";
-      ctx.font = `700 ${Math.max(13, size * 0.3)}px sans-serif`;
+  function drawItem(item) {
+    const meta = ITEM_META[item.type];
+    const p = tileToScreen(item.x, item.y);
+    const size = view.tileW;
+    const cy = p.y - view.tileH * 0.18;
+    drawIsoDiamond(p, `${meta.color}34`, `${meta.color}99`, 11);
+    ctx.fillStyle = `${meta.color}33`;
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y + view.tileH * 0.04, size * 0.16, view.tileH * 0.16, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = meta.color;
+    ctx.beginPath();
+    ctx.roundRect(p.x - size * 0.13, cy - size * 0.13, size * 0.26, size * 0.26, 5);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(246, 240, 223, 0.8)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(p.x - size * 0.13, cy - size * 0.13, size * 0.26, size * 0.26);
+    ctx.fillStyle = "#0e1110";
+    ctx.font = `800 ${Math.max(13, size * 0.22)}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(meta.icon, p.x, cy + 1);
+  }
+
+  function drawMonster(monster) {
+    const p = tileToScreen(monster.x, monster.y);
+    const size = view.tileW;
+    const bodyY = p.y - view.tileH * 0.34;
+    ctx.fillStyle = "rgba(0, 0, 0, 0.34)";
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y + view.tileH * 0.18, size * 0.24, view.tileH * 0.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = monster.hitFlash > 0 ? "#ffffff" : monster.sleepTurns > 0 ? "#605772" : "#9b5ad7";
+    ctx.beginPath();
+    ctx.ellipse(p.x, bodyY, size * 0.24, size * 0.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#21132d";
+    ctx.beginPath();
+    ctx.arc(p.x - size * 0.08, bodyY - size * 0.03, size * 0.03, 0, Math.PI * 2);
+    ctx.arc(p.x + size * 0.08, bodyY - size * 0.03, size * 0.03, 0, Math.PI * 2);
+    ctx.fill();
+    if (monster.sleepTurns > 0) {
+      ctx.fillStyle = "#d8c7ff";
+      ctx.font = `800 ${Math.max(13, size * 0.24)}px sans-serif`;
       ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(meta.icon, cx, cy + 1);
-      ctx.strokeStyle = "rgba(247, 241, 227, 0.78)";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(cx - size * 0.18, cy - size * 0.18, size * 0.36, size * 0.36);
-    });
-  }
-
-  function drawMonsters() {
-    state.monsters.forEach((monster) => {
-      const p = tileToScreen(monster.x, monster.y);
-      const size = view.tile;
-      const cx = p.x + size / 2;
-      const cy = p.y + size / 2;
-      ctx.fillStyle = "rgba(0, 0, 0, 0.24)";
-      ctx.beginPath();
-      ctx.ellipse(cx, cy + size * 0.18, size * 0.26, size * 0.11, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = monster.hitFlash > 0 ? "#ffffff" : monster.sleepTurns > 0 ? "#5d5372" : "#9b5ad7";
-      ctx.beginPath();
-      ctx.ellipse(cx, cy + size * 0.03, size * 0.28, size * 0.24, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = "#21132d";
-      ctx.beginPath();
-      ctx.arc(cx - size * 0.09, cy - size * 0.02, size * 0.035, 0, Math.PI * 2);
-      ctx.arc(cx + size * 0.09, cy - size * 0.02, size * 0.035, 0, Math.PI * 2);
-      ctx.fill();
-      if (monster.sleepTurns > 0) {
-        ctx.fillStyle = "#d8c7ff";
-        ctx.font = `700 ${Math.max(13, size * 0.32)}px sans-serif`;
-        ctx.textAlign = "center";
-        ctx.fillText("Z", cx, cy - size * 0.34);
-      }
-      drawBar(cx, p.y + size * 0.08, size * 0.58, monster.hp, monster.maxHp, "#df6657");
-    });
+      ctx.fillText("Z", p.x, bodyY - size * 0.28);
+    }
+    drawBar(p.x, bodyY - size * 0.26, size * 0.5, monster.hp, monster.maxHp, "#df6657");
   }
 
   function drawPlayer() {
     const p = tileToScreen(state.player.x, state.player.y);
-    const size = view.tile;
-    const cx = p.x + size / 2;
-    const cy = p.y + size / 2;
-    ctx.fillStyle = "rgba(0, 0, 0, 0.24)";
+    const size = view.tileW;
+    const bodyY = p.y - view.tileH * 0.38;
+    ctx.fillStyle = "rgba(0, 0, 0, 0.34)";
     ctx.beginPath();
-    ctx.ellipse(cx, cy + size * 0.24, size * 0.28, size * 0.1, 0, 0, Math.PI * 2);
+    ctx.ellipse(p.x, p.y + view.tileH * 0.2, size * 0.25, view.tileH * 0.2, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = state.player.hitFlash > 0 ? "#ffffff" : "#4f86c8";
     ctx.beginPath();
-    ctx.roundRect(cx - size * 0.18, cy - size * 0.08, size * 0.36, size * 0.32, 6);
+    ctx.roundRect(p.x - size * 0.15, bodyY - size * 0.04, size * 0.3, size * 0.28, 7);
     ctx.fill();
     ctx.fillStyle = "#e5bc82";
     ctx.beginPath();
-    ctx.arc(cx, cy - size * 0.18, size * 0.14, 0, Math.PI * 2);
+    ctx.arc(p.x, bodyY - size * 0.12, size * 0.12, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = "#f7f1e3";
+    ctx.strokeStyle = "#f6f0df";
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(cx - size * 0.22, cy + size * 0.22);
-    ctx.lineTo(cx + size * 0.22, cy + size * 0.22);
+    ctx.moveTo(p.x - size * 0.18, bodyY + size * 0.2);
+    ctx.lineTo(p.x + size * 0.18, bodyY + size * 0.2);
     ctx.stroke();
-    drawFacingCue(cx, cy, size);
-    drawBar(cx, p.y + size * 0.05, size * 0.64, state.player.hp, state.player.maxHp, "#6fc38b");
+    drawFacingCue(p.x, bodyY, size);
+    drawBar(p.x, bodyY - size * 0.28, size * 0.58, state.player.hp, state.player.maxHp, "#75c884");
   }
 
   function drawFacingCue(cx, cy, size) {
-    const offsets = {
-      up: [0, -1],
-      down: [0, 1],
-      left: [-1, 0],
-      right: [1, 0]
-    };
-    const [dx, dy] = offsets[state.player.facing] || offsets.down;
-    ctx.strokeStyle = "#f2c85b";
+    const dir = DIRS[state.player.facing] || DIRS.down;
+    const target = tileToScreen(state.player.x + dir.x * 0.62, state.player.y + dir.y * 0.62);
+    ctx.strokeStyle = "#f0c85a";
     ctx.lineWidth = 3;
     ctx.lineCap = "round";
     ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.lineTo(cx + dx * size * 0.24, cy + dy * size * 0.24);
+    ctx.moveTo(cx, cy + size * 0.08);
+    ctx.lineTo(target.x, target.y - view.tileH * 0.3);
     ctx.stroke();
   }
 
   function drawBar(cx, y, width, value, maxValue, color) {
     const ratio = Math.max(0, Math.min(1, value / maxValue));
-    ctx.fillStyle = "rgba(0, 0, 0, 0.48)";
+    ctx.fillStyle = "rgba(0, 0, 0, 0.52)";
     ctx.fillRect(cx - width / 2, y, width, 5);
     ctx.fillStyle = color;
     ctx.fillRect(cx - width / 2, y, width * ratio, 5);
+  }
+
+  function diamondPoints(center, inset = 0) {
+    const halfW = Math.max(4, view.tileW / 2 - inset);
+    const halfH = Math.max(3, view.tileH / 2 - inset * 0.45);
+    return {
+      top: { x: center.x, y: center.y - halfH },
+      right: { x: center.x + halfW, y: center.y },
+      bottom: { x: center.x, y: center.y + halfH },
+      left: { x: center.x - halfW, y: center.y }
+    };
+  }
+
+  function drawIsoDiamond(center, fill, stroke, inset = 0) {
+    const points = diamondPoints(center, inset);
+    drawPolygon([points.top, points.right, points.bottom, points.left], fill, stroke);
+  }
+
+  function clipIsoDiamond(center, inset = 0) {
+    const points = diamondPoints(center, inset);
+    ctx.beginPath();
+    ctx.moveTo(points.top.x, points.top.y);
+    ctx.lineTo(points.right.x, points.right.y);
+    ctx.lineTo(points.bottom.x, points.bottom.y);
+    ctx.lineTo(points.left.x, points.left.y);
+    ctx.closePath();
+    ctx.clip();
+  }
+
+  function drawPolygon(points, fill, stroke) {
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    points.slice(1).forEach((point) => ctx.lineTo(point.x, point.y));
+    ctx.closePath();
+    if (fill) {
+      ctx.fillStyle = fill;
+      ctx.fill();
+    }
+    if (stroke) {
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
   }
 
   function drawFloaters() {
@@ -1464,7 +1704,7 @@
       ctx.fillStyle = floater.color;
       ctx.font = "700 15px sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText(floater.text, p.x + view.tile / 2, p.y + view.tile * 0.18 - (1 - ratio) * 18);
+      ctx.fillText(floater.text, p.x, p.y - view.tileH * 0.6 - (1 - ratio) * 18);
       ctx.globalAlpha = 1;
     });
   }

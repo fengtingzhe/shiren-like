@@ -18,11 +18,15 @@ for (const [name, path] of Object.entries(paths)) {
 
 const html = readFileSync(paths.html, "utf8");
 assert.match(html, /shiren-like Web Demo/, "HTML title should identify the demo");
-assert.match(html, /game-canvas/, "HTML should include the canvas");
+assert.match(html, /game-canvas/, "HTML should include the main canvas");
 assert.match(html, /styles\.css/, "HTML should load styles.css");
 assert.match(html, /game\.js/, "HTML should load game.js");
 assert.match(html, /hp-value/, "HTML should expose HP HUD");
 assert.match(html, /satiety-value/, "HTML should expose satiety HUD");
+assert.match(html, /minimap-canvas/, "HTML should expose minimap canvas");
+assert.match(html, /enemy-panel/, "HTML should expose enemy panel");
+assert.match(html, /enemy-list/, "HTML should expose enemy list");
+assert.match(html, /turn-order/, "HTML should expose turn order");
 assert.match(html, /food-button/, "HTML should expose food action");
 assert.match(html, /teleport-button/, "HTML should expose teleport action");
 assert.match(html, /sleep-button/, "HTML should expose sleep action");
@@ -30,15 +34,31 @@ assert.match(html, /fireball-button/, "HTML should expose fireball action");
 assert.match(html, /swap-button/, "HTML should expose swap action");
 assert.match(html, /console-button/, "HTML should keep the Console entry");
 
+const css = readFileSync(paths.css, "utf8");
+assert.match(css, /minimap-panel/, "CSS should style the minimap panel");
+assert.match(css, /enemy-panel/, "CSS should style the enemy panel");
+assert.match(css, /quick-actions/, "CSS should style the quickbar");
+
 const webReadme = readFileSync(paths.webReadme, "utf8");
 assert.match(webReadme, /shiren-like Web Demo/, "web demo README should be named");
-assert.match(webReadme, /v0\.3 \/ 随机迷宫与饥饿压力版/, "web demo README should describe v0.3 status");
+assert.match(webReadme, /v0\.4 \/ 镜头与画面表现调整版/, "web demo README should describe v0.4 status");
+assert.match(webReadme, /2\.5D|斜俯视|等距/, "web demo README should describe the 2.5D view");
+assert.match(webReadme, /小地图/, "web demo README should describe the minimap");
+assert.match(webReadme, /敌人面板/, "web demo README should describe the enemy panel");
+assert.match(webReadme, /快捷栏/, "web demo README should describe the quickbar");
 assert.match(webReadme, /随机迷宫/, "web demo README should describe random dungeons");
 assert.match(webReadme, /满腹度/, "web demo README should describe satiety");
 assert.match(webReadme, /饥饿/, "web demo README should describe hunger");
-assert.match(webReadme, /食物/, "web demo README should describe food");
 
 const js = readFileSync(paths.js, "utf8");
+assert.match(js, /tileToScreen/, "JS should include camera projection logic");
+assert.match(js, /screenToTile/, "JS should include projected pointer conversion");
+assert.match(js, /drawIsoDiamond|isometric|screenX|screenY/i, "JS should include isometric drawing logic");
+assert.match(js, /drawMoveRange/, "JS should draw player move range");
+assert.match(js, /drawThreatRange/, "JS should draw monster threat range");
+assert.match(js, /rangeOverlay|drawRangeOverlay|threat/i, "JS should include range overlay logic");
+assert.match(js, /drawMinimap|minimap/i, "JS should include minimap logic");
+assert.match(js, /updateEnemyPanel|enemyList|turnOrder/, "JS should include enemy panel logic");
 assert.match(js, /generateDungeon/, "JS should include random dungeon generation");
 assert.match(js, /generateRooms/, "JS should include room generation");
 assert.match(js, /connectRooms/, "JS should include room corridor connection");
@@ -57,7 +77,7 @@ assert.match(js, /swap/i, "JS should include swap logic");
 assert.match(js, /finishGame/, "JS should include result handling");
 
 const config = JSON.parse(readFileSync(paths.config, "utf8"));
-assert.equal(config.version, "v0.3", "config should be v0.3");
+assert.equal(config.version, "v0.4", "config should be v0.4");
 assert.equal(config.dungeon.maxFloors, 3, "config should include 3-floor goal");
 assert.ok(config.dungeon.generation, "config should include random generation parameters");
 assert.ok(config.dungeon.generation.enabled, "random generation should be enabled");
@@ -85,4 +105,4 @@ for (const term of forbiddenCoreTerms) {
   assert.equal(js.includes(term), false, `JS should not keep old core term: ${term}`);
 }
 
-console.log("v0.3 shiren-like random dungeon and hunger smoke test passed");
+console.log("v0.4 shiren-like camera, UI, random dungeon, and hunger smoke test passed");

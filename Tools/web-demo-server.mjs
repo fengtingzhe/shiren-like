@@ -54,6 +54,6 @@ const server = createServer((req, res) => {
 });
 
 server.listen(port, "127.0.0.1", () => {
-  console.log(`kingdom-like web demo: http://127.0.0.1:${port}/Builds/web-demo/`);
+  console.log(`shiren-like web demo: http://127.0.0.1:${port}/Builds/web-demo/`);
   console.log(`serving root: ${root}`);
 });

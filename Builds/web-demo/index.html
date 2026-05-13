@@ -11,33 +11,47 @@
       <canvas id="game-canvas" aria-label="迷宫画面"></canvas>
 
       <section id="hud" aria-label="游戏状态">
-        <div class="status-strip">
-          <div class="pill hp-pill" aria-label="HP">
-            <span>HP</span>
-            <strong id="hp-value">20 / 20</strong>
+        <div class="status-panel">
+          <div class="portrait" aria-hidden="true">旅</div>
+          <div class="status-stack">
+            <div class="status-heading">
+              <strong>地牢旅人</strong>
+              <span id="floor-value">1F</span>
+            </div>
+            <div class="stat-line hp-pill" aria-label="HP">
+              <span>HP</span>
+              <strong id="hp-value">20 / 20</strong>
+            </div>
+            <div class="stat-line food-pill" aria-label="satiety">
+              <span>满腹</span>
+              <strong id="satiety-value">75 / 100</strong>
+            </div>
+            <div class="status-meta">
+              <span id="turn-value">Turn 0</span>
+              <span class="potion-pill">药 <strong id="potion-value">0</strong></span>
+            </div>
           </div>
-          <div class="pill" aria-label="floor">
-            <span id="floor-value">1F</span>
+          <div class="status-tools">
+            <button id="pause-button" class="icon-button" type="button" aria-label="pause">
+              <span class="pause-icon"></span>
+            </button>
+            <button id="console-button" class="console-button" type="button" aria-label="open console" aria-expanded="false">
+              <span class="console-icon"></span>
+              Console
+            </button>
           </div>
-          <div class="pill" aria-label="turn">
-            <span id="turn-value">Turn 0</span>
-          </div>
-          <div class="pill potion-pill" aria-label="potion count">
-            <span>药</span>
-            <strong id="potion-value">0</strong>
-          </div>
-          <div class="pill food-pill" aria-label="satiety">
-            <span>满腹</span>
-            <strong id="satiety-value">75 / 100</strong>
-          </div>
-          <button id="pause-button" class="icon-button" type="button" aria-label="pause">
-            <span class="pause-icon"></span>
-          </button>
-          <button id="console-button" class="console-button" type="button" aria-label="open console" aria-expanded="false">
-            <span class="console-icon"></span>
-            Console
-          </button>
         </div>
+
+        <aside class="minimap-panel" aria-label="小地图">
+          <div class="panel-heading">小地图</div>
+          <canvas id="minimap-canvas" width="180" height="132"></canvas>
+        </aside>
+
+        <aside id="enemy-panel" class="enemy-panel" aria-label="敌人面板">
+          <div class="panel-heading">行动序列</div>
+          <div id="turn-order" class="turn-order"></div>
+          <div id="enemy-list" class="enemy-list"></div>
+        </aside>
 
         <div id="objective" class="objective"></div>
         <div id="prompt" class="prompt is-hidden"></div>
@@ -50,8 +64,8 @@
           <button id="sleep-button" class="action-button secondary" type="button" title="Z：让附近怪物睡眠 3 回合">Z 睡眠 0</button>
           <button id="fireball-button" class="action-button secondary" type="button" title="R：朝当前方向发射火球">R 火球 0</button>
           <button id="swap-button" class="action-button secondary" type="button" title="X：与当前方向第一个怪物换位">X 换位 0</button>
-          <button id="wait-button" class="action-button secondary" type="button">. 等待</button>
-          <button id="stairs-button" class="action-button secondary" type="button">E 下楼</button>
+          <button id="wait-button" class="action-button secondary command-button" type="button">. 等待</button>
+          <button id="stairs-button" class="action-button secondary command-button" type="button">E 下楼</button>
         </div>
 
         <div class="touch-pad" aria-label="direction controls">
