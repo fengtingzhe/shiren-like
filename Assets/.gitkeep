@@ -1,0 +1,14 @@
+# Assets
+
+该目录用于保存美术、音频、字体、动画、特效等资源。
+
+建议子目录：
+
+```text
+Assets/
+├── Art/
+├── Audio/
+├── Fonts/
+├── Animation/
+└── Raw/
+```

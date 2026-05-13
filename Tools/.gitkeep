@@ -1,0 +1,14 @@
+# Tools
+
+该目录用于保存辅助工具、导表工具、构建脚本、资源处理脚本等。
+
+建议子目录：
+
+```text
+Tools/
+├── DataExport/
+├── AssetPipeline/
+├── BuildScripts/
+├── DebugTools/
+└── AIHelpers/
+```

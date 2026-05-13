@@ -1,0 +1,19 @@
+# Data
+
+该目录用于保存游戏配置数据，减少硬编码。
+
+建议子目录：
+
+```text
+Data/
+├── config/
+├── levels/
+├── characters/
+├── enemies/
+├── items/
+├── skills/
+├── rewards/
+├── economy/
+├── localization/
+└── mock/
+```

@@ -1,0 +1,60 @@
+{
+  "economy": {
+    "startingGold": 8,
+    "treeCost": 1,
+    "wallCost": 2,
+    "towerCost": 3,
+    "landmarkCost": 6,
+    "recruitCost": 1,
+    "chestMin": 3,
+    "chestMax": 5,
+    "dayIncomePerArcher": 1,
+    "landmarkDailyIncome": 2
+  },
+  "timing": {
+    "daySeconds": 75,
+    "duskSeconds": 15,
+    "nightSeconds": 24
+  },
+  "player": {
+    "speed": 2.65,
+    "forestSpeedMultiplier": 0.68,
+    "interactRadius": 0.92
+  },
+  "workers": {
+    "initialWorkers": 1,
+    "initialArchers": 1,
+    "moveSpeed": 1.72,
+    "treeChopSeconds": 2.8,
+    "buildSeconds": 3.4
+  },
+  "combat": {
+    "campHp": 14,
+    "wallHp": 8,
+    "enemyHp": 4,
+    "enemySpeed": 0.8,
+    "enemyDamage": 1,
+    "enemyAttackSeconds": 1.25,
+    "enemySpawnSeconds": 6,
+    "towerRange": 3.4,
+    "towerDamage": 2,
+    "towerFireSeconds": 1.35,
+    "archerRange": 2.7,
+    "archerDamage": 1,
+    "archerFireSeconds": 1.55
+  },
+  "level": {
+    "width": 13,
+    "height": 9,
+    "camp": [5, 4],
+    "initialClearedRadius": 2,
+    "features": [
+      { "id": "west_chest", "type": "chest", "x": 2, "y": 2 },
+      { "id": "lost_vagrant", "type": "vagrant", "x": 3, "y": 6 },
+      { "id": "east_wall", "type": "wall", "x": 7, "y": 4 },
+      { "id": "north_tower", "type": "tower", "x": 8, "y": 3 },
+      { "id": "old_landmark", "type": "landmark", "x": 10, "y": 4 },
+      { "id": "danger_trace", "type": "danger", "x": 11, "y": 6 }
+    ]
+  }
+}

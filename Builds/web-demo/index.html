@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>kingdom-like Web Demo</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <main id="game-shell" aria-label="kingdom-like web demo">
+      <canvas id="game-canvas"></canvas>
+
+      <section id="hud" aria-label="game status">
+        <div class="status-strip">
+          <div class="pill coin-pill" aria-label="gold">
+            <span class="coin-mark"></span>
+            <strong id="gold-value">0</strong>
+          </div>
+          <div class="pill" aria-label="day">
+            <span id="day-value">Day 1</span>
+          </div>
+          <div class="pill phase-pill" aria-label="phase">
+            <span id="phase-dot"></span>
+            <span id="phase-value">Day</span>
+          </div>
+          <button id="pause-button" class="icon-button" type="button" aria-label="pause">
+            <span class="pause-icon"></span>
+          </button>
+          <button id="console-button" class="console-button" type="button" aria-label="open console" aria-expanded="false">
+            <span class="console-icon"></span>
+            Console
+          </button>
+        </div>
+
+        <div id="objective" class="objective"></div>
+        <div id="prompt" class="prompt is-hidden"></div>
+        <button id="action-button" class="action-button is-hidden" type="button">
+          <span class="coin-mark"></span>
+          <span id="action-label">投金币</span>
+        </button>
+        <div id="event-log" class="event-log" aria-live="polite"></div>
+      </section>
+
+      <aside id="console-panel" class="console-panel" aria-label="console panel" aria-hidden="true">
+        <div class="console-header">
+          <h2>Console</h2>
+          <button id="console-close-button" class="icon-button" type="button" aria-label="close console">
+            <span class="close-icon"></span>
+          </button>
+        </div>
+        <div class="console-control">
+          <label for="camera-zoom-slider">镜头缩放</label>
+          <div class="range-row">
+            <input id="camera-zoom-slider" type="range" min="0.5" max="50" step="0.1" value="1.2">
+            <strong id="camera-zoom-value">120%</strong>
+          </div>
+        </div>
+      </aside>
+
+      <section id="start-overlay" class="overlay">
+        <div class="modal">
+          <h1>kingdom-like</h1>
+          <p>探索森林，投金币命令村民砍树、建造和升级，守住夜晚。</p>
+          <button id="start-button" class="primary-button" type="button">
+            <span class="play-icon"></span>
+            开始 Demo
+          </button>
+          <p class="control-note">WASD / 方向键移动，E / 空格投金币，也可以点击地面移动。</p>
+        </div>
+      </section>
+
+      <section id="result-overlay" class="overlay is-hidden">
+        <div class="modal">
+          <h2 id="result-title">Demo 完成</h2>
+          <p id="result-copy"></p>
+          <button id="restart-button" class="primary-button" type="button">
+            <span class="restart-icon"></span>
+            再玩一次
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <script src="./game.js" defer></script>
+  </body>
+</html>

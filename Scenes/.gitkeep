@@ -1,0 +1,16 @@
+# Scenes
+
+该目录用于保存 Godot 场景文件。
+
+建议子目录：
+
+```text
+Scenes/
+├── Core/
+├── Gameplay/
+├── UI/
+├── Levels/
+├── Characters/
+├── Enemies/
+└── Test/
+```

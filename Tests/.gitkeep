@@ -1,0 +1,14 @@
+# Tests
+
+该目录用于保存测试、验证脚本、测试场景和人工测试记录。
+
+建议子目录：
+
+```text
+Tests/
+├── Unit/
+├── Integration/
+├── Gameplay/
+├── UI/
+└── Manual/
+```

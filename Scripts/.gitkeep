@@ -1,0 +1,17 @@
+# Scripts
+
+该目录用于保存 Godot 脚本和游戏逻辑代码。
+
+建议子目录：
+
+```text
+Scripts/
+├── Core/
+├── Gameplay/
+├── UI/
+├── Systems/
+├── Data/
+├── Utils/
+├── Debug/
+└── Tests/
+```
