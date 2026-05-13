@@ -35,11 +35,10 @@ assert.match(css, /combat-stats/, "CSS should style combat stat chips");
 assert.match(css, /equipment-line/, "CSS should style equipment rows");
 
 const webReadme = readFileSync(paths.webReadme, "utf8");
-assert.match(webReadme, /v0\.7 \/ 装备与数值成长版/, "README should describe v0.7");
-assert.match(webReadme, /Short Sword/, "README should mention Short Sword");
-assert.match(webReadme, /Iron Shield/, "README should mention Iron Shield");
-assert.match(webReadme, /按 `C`/, "README should describe equip input");
-assert.match(webReadme, /怪物攻击现在会先扣掉防御/, "README should describe defense mitigation");
+assert.match(webReadme, /v0\.7\.1 \/ 装备池补全与平衡版/, "README should describe v0.7.1");
+assert.match(webReadme, /火焰剑|Flame Sword/, "README should mention Flame Sword");
+assert.match(webReadme, /守护盾|Guard Shield/, "README should mention Guard Shield");
+assert.match(webReadme, /相邻安全格/, "README should describe adjacent equipment drop behavior");
 
 const js = readFileSync(paths.js, "utf8");
 assert.match(js, /createEquipmentDrop/, "JS should create equipment drops");
@@ -51,18 +50,23 @@ assert.match(js, /getPlayerDefense/, "JS should compute derived player defense")
 assert.match(js, /KeyC/, "JS should bind equip hotkey");
 assert.match(js, /weapon-value/, "JS should update weapon UI");
 assert.match(js, /shield-value/, "JS should update shield UI");
-assert.match(js, /Math\.max\(1, monster\.attack - getPlayerDefense\(\)\)/, "JS should reduce monster damage by defense");
-assert.match(js, /generateDungeon/, "JS should keep random dungeon generation");
 assert.match(js, /placeHazards/, "JS should keep hazard generation");
+assert.match(js, /triggerTrapAt/, "JS should keep trap triggering");
+assert.match(js, /applyTerrainAt/, "JS should keep terrain damage");
+assert.match(js, /actMonster/, "JS should keep monster AI");
+assert.match(js, /generateDungeon/, "JS should keep random dungeon generation");
 assert.match(js, /CAMERA_FIELDS/, "JS should keep camera tuning support");
+assert.match(js, /findSafeEquipmentDropCell/, "JS should provide stable drop logic");
 
 const config = JSON.parse(readFileSync(paths.config, "utf8"));
-assert.equal(config.version, "v0.7", "config should be v0.7");
+assert.equal(config.version, "v0.7.1", "config should be v0.7.1");
 assert.equal(typeof config.equipment, "object", "config should include equipment");
-assert.equal(config.player.defense, 0, "player base defense should exist");
-assert.equal(config.equipment.short_sword.attackBonus, 1, "short sword should grant attack");
-assert.equal(config.equipment.iron_shield.defenseBonus, 2, "iron shield should grant defense");
-assert.equal(Array.isArray(config.dungeon.generation.floorRules[0].equipmentTypes), true, "equipment floor rules should exist");
+assert.equal(Boolean(config.equipment.flame_sword), true, "config should include flame_sword");
+assert.equal(Boolean(config.equipment.guard_shield), true, "config should include guard_shield");
+assert.equal(config.equipment.flame_sword.attackBonus, 4, "flame sword should grant +4 ATK");
+assert.equal(config.equipment.guard_shield.defenseBonus, 3, "guard shield should grant +3 DEF");
+assert.equal(config.dungeon.generation.floorRules[2].equipmentTypes.some((entry) => entry.type === "flame_sword"), true, "3F should include flame_sword");
+assert.equal(config.dungeon.generation.floorRules[2].equipmentTypes.some((entry) => entry.type === "guard_shield"), true, "3F should include guard_shield");
 assert.equal(Array.isArray(config.hazards.floorRules), true, "hazard floor rules should still exist");
 
 const forbiddenCoreTerms = [
@@ -78,4 +82,4 @@ for (const term of forbiddenCoreTerms) {
   assert.equal(js.includes(term), false, `JS should not keep old core term: ${term}`);
 }
 
-console.log("v0.7 shiren-like equipment smoke test passed");
+console.log("v0.7.1 shiren-like equipment pool smoke test passed");

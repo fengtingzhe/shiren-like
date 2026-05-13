@@ -1,7 +1,7 @@
 ﻿(() => {
   const CONFIG_URL = "../../Data/config/web_demo_balance.json";
   const DEFAULT_CONFIG = {
-    version: "v0.7",
+    version: "v0.7.1",
     dungeon: {
       maxFloors: 3,
       width: 36,
@@ -24,9 +24,9 @@
             equipment: [1, 2],
             equipmentTypes: [
               { type: "short_sword", weight: 45 },
-              { type: "wooden_shield", weight: 40 },
-              { type: "spear", weight: 10 },
-              { type: "iron_shield", weight: 5 }
+              { type: "wooden_shield", weight: 45 },
+              { type: "spear", weight: 8 },
+              { type: "iron_shield", weight: 2 }
             ]
           },
           {
@@ -41,10 +41,12 @@
             strategyItems: [2, 2],
             equipment: [2, 2],
             equipmentTypes: [
-              { type: "short_sword", weight: 25 },
-              { type: "wooden_shield", weight: 25 },
+              { type: "short_sword", weight: 20 },
+              { type: "wooden_shield", weight: 20 },
               { type: "spear", weight: 30 },
-              { type: "iron_shield", weight: 20 }
+              { type: "iron_shield", weight: 25 },
+              { type: "flame_sword", weight: 3 },
+              { type: "guard_shield", weight: 2 }
             ]
           },
           {
@@ -60,10 +62,10 @@
             strategyItems: [2, 3],
             equipment: [2, 3],
             equipmentTypes: [
-              { type: "short_sword", weight: 15 },
-              { type: "wooden_shield", weight: 15 },
               { type: "spear", weight: 35 },
-              { type: "iron_shield", weight: 35 }
+              { type: "iron_shield", weight: 35 },
+              { type: "flame_sword", weight: 20 },
+              { type: "guard_shield", weight: 20 }
             ]
           }
         ],
@@ -232,6 +234,15 @@
         icon: "L",
         color: "#cdb292"
       },
+      flame_sword: {
+        id: "flame_sword",
+        name: "火焰剑",
+        slot: "weapon",
+        attackBonus: 4,
+        defenseBonus: 0,
+        icon: "F",
+        color: "#e06a3b"
+      },
       wooden_shield: {
         id: "wooden_shield",
         name: "木盾",
@@ -249,6 +260,15 @@
         defenseBonus: 2,
         icon: "I",
         color: "#96a7c4"
+      },
+      guard_shield: {
+        id: "guard_shield",
+        name: "守护盾",
+        slot: "shield",
+        attackBonus: 0,
+        defenseBonus: 3,
+        icon: "G",
+        color: "#6aa0d8"
       }
     },
     hazards: {
@@ -1372,6 +1392,10 @@
     return state.equipmentOnGround.find((item) => item.x === x && item.y === y);
   }
 
+  function findEquipmentAtPlayer() {
+    return equipmentAt(state.player.x, state.player.y);
+  }
+
   function trapAt(x, y) {
     return state.trapLookup.get(keyOf(x, y)) || null;
   }
@@ -1402,6 +1426,13 @@
     return state.player.baseDefense + shieldBonus;
   }
 
+  function getEquipmentBonusValue(item) {
+    if (!item) {
+      return 0;
+    }
+    return item.slot === "weapon" ? (item.attackBonus || 0) : (item.defenseBonus || 0);
+  }
+
   function formatEquipmentStats(item) {
     if (!item) {
       return "";
@@ -1420,12 +1451,11 @@
     if (!item) {
       return "-";
     }
-    const stats = formatEquipmentStats(item);
-    return stats ? `${item.name} ${stats}` : item.name;
+    return `${item.name} +${getEquipmentBonusValue(item)}`;
   }
 
   function getGroundEquipmentPrompt() {
-    const groundItem = equipmentAt(state.player.x, state.player.y);
+    const groundItem = findEquipmentAtPlayer();
     if (!groundItem) {
       return "";
     }
@@ -1434,6 +1464,51 @@
       return `脚下有 ${getEquipmentLabel(groundItem)}。按 C 装备。`;
     }
     return `脚下有 ${getEquipmentLabel(groundItem)}。按 C 替换当前 ${getEquipmentLabel(current)}。`;
+  }
+
+  function canPlaceEquipmentAt(x, y, ignoreItem = null) {
+    if (!isWalkable(x, y)) {
+      return false;
+    }
+    if (state.stairs.x === x && state.stairs.y === y) {
+      return false;
+    }
+    if (monsterAt(x, y) || itemAt(x, y)) {
+      return false;
+    }
+    if (trapAt(x, y) || terrainAt(x, y)) {
+      return false;
+    }
+    return !state.equipmentOnGround.some((item) => item !== ignoreItem && item.x === x && item.y === y);
+  }
+
+  function findSafeEquipmentDropCell(ignoreItem = null) {
+    if (canPlaceEquipmentAt(state.player.x, state.player.y, ignoreItem)) {
+      return { x: state.player.x, y: state.player.y, kind: "feet" };
+    }
+    const neighbors = [
+      { x: state.player.x, y: state.player.y - 1 },
+      { x: state.player.x + 1, y: state.player.y },
+      { x: state.player.x, y: state.player.y + 1 },
+      { x: state.player.x - 1, y: state.player.y }
+    ];
+    const cell = neighbors.find((candidate) => canPlaceEquipmentAt(candidate.x, candidate.y, ignoreItem));
+    return cell ? { ...cell, kind: "adjacent" } : null;
+  }
+
+  function buildEquipmentEquipMessage(item, previousValue) {
+    const nextValue = item.slot === "weapon" ? getPlayerAttack() : getPlayerDefense();
+    if (nextValue > previousValue) {
+      return item.slot === "weapon"
+        ? `你装备了${item.name}，攻击提升到 ${nextValue}。`
+        : `你装备了${item.name}，防御提升到 ${nextValue}。`;
+    }
+    if (nextValue < previousValue) {
+      return item.slot === "weapon"
+        ? `你装备了${item.name}，攻击调整到 ${nextValue}。`
+        : `你装备了${item.name}，防御调整到 ${nextValue}。`;
+    }
+    return `你装备了${item.name}。`;
   }
 
   function manhattan(ax, ay, bx, by) {
@@ -1644,25 +1719,29 @@
     if (maybeSkipPlayerTurnForSleep()) {
       return;
     }
-    const groundItem = equipmentAt(state.player.x, state.player.y);
+    const groundItem = findEquipmentAtPlayer();
     if (!groundItem) {
       addMessage("脚下没有可装备的物品。");
       updateUi();
       return;
     }
     const current = getEquippedItem(groundItem.slot);
+    const previousValue = groundItem.slot === "weapon" ? getPlayerAttack() : getPlayerDefense();
+    state.equipmentOnGround = state.equipmentOnGround.filter((item) => item !== groundItem);
     state.player.equipment[groundItem.slot] = createEquipmentDrop(groundItem.type, 0, 0, `equipped_${groundItem.slot}`);
     delete state.player.equipment[groundItem.slot].x;
     delete state.player.equipment[groundItem.slot].y;
+    addMessage(buildEquipmentEquipMessage(groundItem, previousValue));
     if (current) {
-      const dropped = createEquipmentDrop(current.type, state.player.x, state.player.y, `swap_${groundItem.slot}`);
-      state.equipmentOnGround = state.equipmentOnGround.map((item) => (item === groundItem ? dropped : item));
-      addMessage(`你换下 ${getEquipmentLabel(current)}，装备了 ${getEquipmentLabel(groundItem)}。`);
-    } else {
-      state.equipmentOnGround = state.equipmentOnGround.filter((item) => item !== groundItem);
-      addMessage(`你装备了 ${getEquipmentLabel(groundItem)}。`);
+      const dropCell = findSafeEquipmentDropCell();
+      if (dropCell) {
+        state.equipmentOnGround.push(createEquipmentDrop(current.type, dropCell.x, dropCell.y, `swap_${groundItem.slot}`));
+        addMessage(dropCell.kind === "feet" ? `你卸下的${current.name}掉在了脚下。` : `你卸下的${current.name}掉在了旁边。`);
+      } else {
+        addMessage("附近没有可放置的位置，旧装备消失了。");
+      }
     }
-    addFloater(state.player.x, state.player.y, formatEquipmentStats(groundItem) || "装备", groundItem.color);
+    addFloater(state.player.x, state.player.y, `+${getEquipmentBonusValue(groundItem)}`, groundItem.color);
     advanceTurn();
   }
 

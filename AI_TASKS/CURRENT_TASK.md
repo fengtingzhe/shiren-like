@@ -2,28 +2,25 @@
 
 ## 任务名称
 
-`Web Demo v0.7 / 装备与数值成长版`
+`Web Demo v0.7.1 / 装备池补全与平衡版`
 
 ## 背景
 
-`v0.6` 已经把怪物、陷阱和危险地形接起来了，但玩家数值仍然几乎不变。这一轮的目标是加入最小可玩的装备系统，让探索中的“捡还是不捡、换还是不换”开始形成取舍。
+`v0.7` 已经接入了最小装备系统，但装备池偏小，成长曲线不完整。这一轮只做补丁版：补齐高级武器和高级盾牌，并把装备替换与掉落逻辑稳定下来。
 
 ## 本轮目标
 
-- [x] 保留 `v0.6` 的随机迷宫、怪物、陷阱、危险地形、镜头和 Console
-- [x] 加入 `weapon / shield` 两个装备位
-- [x] 新增最小装备池并进入随机地牢生成
-- [x] 让装备影响 `ATK / DEF`
-- [x] 让玩家站在装备上按 `C` 装备或替换
-- [x] 替换时把旧装备掉回脚下
-- [x] HUD 显示 `ATK / DEF / weapon / shield`
-- [x] README、配置、smoke test、任务记录同步到 `v0.7`
+- [x] 保留 `v0.7` 的装备系统、怪物、陷阱、危险地形、镜头和 Console
+- [x] 新增 `flame_sword / 火焰剑`
+- [x] 新增 `guard_shield / 守护盾`
+- [x] 微调 `1F / 2F / 3F` 装备掉落权重
+- [x] 收紧装备替换与旧装备掉落逻辑
+- [x] 保证装备不与怪物、道具、陷阱、危险地形、楼梯重叠
+- [x] HUD、README、配置、smoke test、任务记录同步到 `v0.7.1`
 
 ## 本轮范围
 
 - `D:\work\shiren-like\Builds\web-demo\game.js`
-- `D:\work\shiren-like\Builds\web-demo\index.html`
-- `D:\work\shiren-like\Builds\web-demo\styles.css`
 - `D:\work\shiren-like\Builds\web-demo\README.md`
 - `D:\work\shiren-like\Data\config\web_demo_balance.json`
 - `D:\work\shiren-like\Tests\web-demo-smoke.mjs`
@@ -35,11 +32,15 @@
 ## 本轮不做
 
 - 未鉴定
+- 强化
+- 合成
+- 诅咒
+- 耐久
 - 背包容量
 - 投掷
+- 商店
 - 怪物屋
 - 壶
-- 商店
 - 据点
 - Boss
 - Godot
@@ -50,10 +51,12 @@
 - [x] `node --check D:\work\shiren-like\Tools\web-demo-server.mjs`
 - [x] `node D:\work\shiren-like\Tests\web-demo-smoke.mjs`
 - [x] 页面正常启动，无前端报错
-- [x] 地图内能生成武器和盾牌
-- [x] 站在装备上按 `C` 可以装备或替换
-- [x] `ATK / DEF` 会随装备变化
-- [x] 怪物攻击会吃到防御减伤
+- [x] 地图中仍会生成武器和盾牌
+- [x] `3F` 有机会生成火焰剑和守护盾
+- [x] 装备火焰剑后 `ATK` 正确增加
+- [x] 装备守护盾后 `DEF` 正确增加
+- [x] 按 `C` 仍能稳定装备或替换
+- [x] 旧装备掉落逻辑稳定，无错误重叠
 
 ## 下一轮建议
 

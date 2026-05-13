@@ -1,5 +1,5 @@
 {
-  "version": "v0.7",
+  "version": "v0.7.1",
   "dungeon": {
     "maxFloors": 3,
     "width": 36,
@@ -22,9 +22,9 @@
           "equipment": [1, 2],
           "equipmentTypes": [
             { "type": "short_sword", "weight": 45 },
-            { "type": "wooden_shield", "weight": 40 },
-            { "type": "spear", "weight": 10 },
-            { "type": "iron_shield", "weight": 5 }
+            { "type": "wooden_shield", "weight": 45 },
+            { "type": "spear", "weight": 8 },
+            { "type": "iron_shield", "weight": 2 }
           ]
         },
         {
@@ -39,10 +39,12 @@
           "strategyItems": [2, 2],
           "equipment": [2, 2],
           "equipmentTypes": [
-            { "type": "short_sword", "weight": 25 },
-            { "type": "wooden_shield", "weight": 25 },
+            { "type": "short_sword", "weight": 20 },
+            { "type": "wooden_shield", "weight": 20 },
             { "type": "spear", "weight": 30 },
-            { "type": "iron_shield", "weight": 20 }
+            { "type": "iron_shield", "weight": 25 },
+            { "type": "flame_sword", "weight": 3 },
+            { "type": "guard_shield", "weight": 2 }
           ]
         },
         {
@@ -58,10 +60,10 @@
           "strategyItems": [2, 3],
           "equipment": [2, 3],
           "equipmentTypes": [
-            { "type": "short_sword", "weight": 15 },
-            { "type": "wooden_shield", "weight": 15 },
-            { "type": "spear", "weight": 35 },
-            { "type": "iron_shield", "weight": 35 }
+            { "type": "spear", "weight": 30 },
+            { "type": "iron_shield", "weight": 30 },
+            { "type": "flame_sword", "weight": 20 },
+            { "type": "guard_shield", "weight": 20 }
           ]
         }
       ],
@@ -173,6 +175,15 @@
       "icon": "L",
       "color": "#cdb292"
     },
+    "flame_sword": {
+      "id": "flame_sword",
+      "name": "火焰剑",
+      "slot": "weapon",
+      "attackBonus": 4,
+      "defenseBonus": 0,
+      "icon": "F",
+      "color": "#e06a3b"
+    },
     "wooden_shield": {
       "id": "wooden_shield",
       "name": "木盾",
@@ -190,6 +201,15 @@
       "defenseBonus": 2,
       "icon": "I",
       "color": "#96a7c4"
+    },
+    "guard_shield": {
+      "id": "guard_shield",
+      "name": "守护盾",
+      "slot": "shield",
+      "attackBonus": 0,
+      "defenseBonus": 3,
+      "icon": "G",
+      "color": "#6aa0d8"
     }
   },
   "hazards": {
