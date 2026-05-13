@@ -2,7 +2,7 @@
 
 ## 任务名称
 
-Web Demo v0.7 / 装备与数值成长版
+Web Demo v0.7.1 / 装备池补全与平衡版
 
 ---
 
@@ -10,31 +10,35 @@ Web Demo v0.7 / 装备与数值成长版
 
 你正在继续开发 `shiren-like` 项目的 Web Demo。
 
-当前版本 `v0.6 / 陷阱与危险地形版` 已完成，已经实现：
+当前版本 `v0.7 / 装备与数值成长版` 已经完成最小装备系统：
 
-- 随机房间与走廊；
-- 房间尺寸 3×3 到 10×10；
-- 每个非出生房间至少 1 只怪物；
-- 玩家中心镜头；
-- Console / Camera / View 视野调参；
-- 饥饿与满腹度；
-- 回复药、食物、传送卷轴、睡眠卷轴、火球杖、换位杖；
-- 四种怪物：Slime、Goblin Archer、Sleep Mushroom、Skeleton Spearman；
-- 三种陷阱：Spike Trap、Warp Trap、Sleep Trap；
-- 一种危险地形：Poison Pool；
-- 小地图、敌人面板、底部快捷栏；
-- 3 层胜利、HP 为 0 失败。
+- 玩家有 `weapon / shield` 两个装备位；
+- 地图中会生成装备；
+- 玩家站在装备上按 `C` 可以装备或替换；
+- 替换时旧装备会掉回脚下；
+- 武器影响 `ATK`；
+- 盾牌影响 `DEF`；
+- 怪物攻击会受到防御减免，最低伤害为 1；
+- HUD 显示 `ATK / DEF / weapon / shield`；
+- v0.6 陷阱与危险地形、v0.5 怪物、玩家中心镜头、Console 调参、小地图、敌人面板、快捷栏都保留。
+
+但当前 v0.7 实际实现的装备池偏小：
+
+```text
+武器：Short Sword / Spear
+盾牌：Wooden Shield / Iron Shield
+```
 
 本轮任务是：
 
 ```text
-Web Demo v0.7 / 装备与数值成长版
+Web Demo v0.7.1 / 装备池补全与平衡版
 ```
 
-本轮核心目标不是做完整 RPG 装备系统，而是加入最小可玩的装备与数值成长：
+本轮目标不是增加新系统，而是补齐装备池并做一次轻量平衡：
 
 ```text
-玩家可以拾取、装备、替换武器和盾牌；装备会改变攻击、防御等基础数值；玩家开始在探索中做“换不换装备”的取舍。
+补齐高级武器和高级盾牌，让装备成长更完整；检查装备生成、替换、掉落和攻防成长节奏是否合理。
 ```
 
 ---
@@ -74,377 +78,249 @@ Web Demo v0.7 / 装备与数值成长版
 阅读后先输出：
 
 ```text
-我已理解当前项目是 shiren-like，本轮只做 Web Demo v0.7 / 装备与数值成长版。目标是加入最小可玩的武器、盾牌、装备替换和数值变化；不加入未鉴定、强化合成、诅咒、商店、怪物屋、据点、Boss 或 Godot。
+我已理解当前项目是 shiren-like，本轮只做 Web Demo v0.7.1 / 装备池补全与平衡版。目标是补齐高级装备并微调装备掉落和攻防成长，不新增未鉴定、强化、合成、诅咒、耐久、商店、怪物屋、壶、据点、Boss 或 Godot。
 ```
 
 ---
 
 ## 二、本轮核心目标
 
-在保留 v0.6 已有系统的基础上，加入装备系统的最小闭环：
+在 v0.7 的基础上，完成以下改动：
 
-1. 新增武器和盾牌两类装备；
-2. 玩家可以拾取装备；
-3. 玩家可以装备 / 替换装备；
-4. 武器影响玩家攻击；
-5. 盾牌影响玩家受到的伤害；
-6. HUD 和日志能清楚显示装备和数值变化；
-7. 地图中随机生成少量装备；
-8. 不加入复杂装备系统。
+1. 补齐高级武器 `flame_sword / 火焰剑`；
+2. 补齐高级盾牌 `guard_shield / 守护盾`；
+3. 检查并微调每层装备掉落权重；
+4. 保证装备替换和旧装备掉落逻辑稳定；
+5. 保证装备不会与怪物、道具、陷阱、危险地形、楼梯重叠；
+6. 更新 HUD、日志、README、配置、smoke test 和任务记录；
+7. 不新增复杂装备系统。
 
-完成后，玩家应感受到：
+完成后，玩家应能感受到：
 
 ```text
-探索不只是找消耗品，也能找到让自己变强的装备。
-遇到新武器或盾牌时，需要判断是否替换。
-装备会改变战斗节奏和风险承受能力。
+1F 主要获得基础装备；
+2F 可能获得中级装备；
+3F 有机会获得高级装备；
+武器和盾牌成长形成清晰的探索奖励。
 ```
 
 ---
 
-## 三、本轮新增装备
+## 三、装备池补全
 
-### 1. 武器 / Weapon
+当前 v0.7 已有：
 
-定位：提升玩家攻击力。
+```text
+short_sword：短剑，weapon，ATK +1
+spear：长枪，weapon，ATK +2
+wooden_shield：木盾，shield，DEF +1
+iron_shield：铁盾，shield，DEF +2
+```
 
-建议初版只做 3 种武器：
+本轮新增：
+
+### 1. Flame Sword / 火焰剑
 
 ```json
-"weapons": {
-  "wooden_sword": {
-    "id": "wooden_sword",
-    "name": "木剑",
-    "slot": "weapon",
-    "attackBonus": 1,
-    "icon": "/",
-    "color": "#c99b5c"
-  },
-  "iron_sword": {
-    "id": "iron_sword",
-    "name": "铁剑",
-    "slot": "weapon",
-    "attackBonus": 3,
-    "icon": "/",
-    "color": "#b7c0c7"
-  },
-  "flame_sword": {
-    "id": "flame_sword",
-    "name": "火焰剑",
-    "slot": "weapon",
-    "attackBonus": 4,
-    "icon": "/",
-    "color": "#e06a3b"
-  }
+"flame_sword": {
+  "id": "flame_sword",
+  "name": "火焰剑",
+  "slot": "weapon",
+  "attackBonus": 4,
+  "defenseBonus": 0,
+  "icon": "F",
+  "color": "#e06a3b"
 }
 ```
 
-本轮不做：
+说明：
 
-- 不做耐久；
-- 不做强化等级；
-- 不做附魔；
+- 本轮只做高攻击数值装备；
+- 不做火焰特效；
 - 不做属性克制；
-- 不做武器特殊技能。
+- 不做燃烧状态；
+- 不做特殊攻击。
 
 ---
 
-### 2. 盾牌 / Shield
-
-定位：降低玩家受到的伤害。
-
-建议初版只做 3 种盾牌：
+### 2. Guard Shield / 守护盾
 
 ```json
-"shields": {
-  "wooden_shield": {
-    "id": "wooden_shield",
-    "name": "木盾",
-    "slot": "shield",
-    "defenseBonus": 1,
-    "icon": "]",
-    "color": "#b98a54"
-  },
-  "iron_shield": {
-    "id": "iron_shield",
-    "name": "铁盾",
-    "slot": "shield",
-    "defenseBonus": 2,
-    "icon": "]",
-    "color": "#b7c0c7"
-  },
-  "guard_shield": {
-    "id": "guard_shield",
-    "name": "守护盾",
-    "slot": "shield",
-    "defenseBonus": 3,
-    "icon": "]",
-    "color": "#6aa0d8"
-  }
+"guard_shield": {
+  "id": "guard_shield",
+  "name": "守护盾",
+  "slot": "shield",
+  "attackBonus": 0,
+  "defenseBonus": 3,
+  "icon": "G",
+  "color": "#6aa0d8"
 }
 ```
 
-防御公式建议：
+说明：
 
-```text
-finalDamage = max(1, incomingDamage - player.defense)
-```
-
-这里的 `player.defense` 来自盾牌 `defenseBonus`。
-
-注意：
-
-- 陷阱和毒沼伤害是否受盾牌减免，本轮建议不受盾牌减免；
-- 怪物普通攻击、弓手射击、枪兵攻击受盾牌减免；
-- 日志要写清楚防御后的伤害。
+- 本轮只做高防御数值装备；
+- 不做特殊抗性；
+- 不做反伤；
+- 不做免疫陷阱；
+- 不做耐久。
 
 ---
 
-## 四、玩家数值结构
+## 四、装备生成权重调整
 
-请扩展玩家状态：
+请继续使用当前 v0.7 的 `equipmentTypes` 生成方式，不要重做整个装备系统。
 
-```js
-player: {
-  baseAttack: 4,
-  attack: 4,
-  defense: 0,
-  equipment: {
-    weapon: null,
-    shield: null
-  }
-}
-```
+推荐调整为：
 
-或者保留现有 `player.attack`，但必须能计算：
-
-```js
-getPlayerAttack()
-getPlayerDefense()
-```
-
-建议：
-
-```text
-总攻击 = 基础攻击 + 武器 attackBonus
-总防御 = 盾牌 defenseBonus
-```
-
-不要直接把装备加成永久写死到基础攻击里，避免替换装备后数值越来越乱。
-
----
-
-## 五、装备拾取与替换规则
-
-### 1. 装备生成在地图上
-
-新增装备地面对象，建议标记：
-
-| 标记 | 类型 |
-|---|---|
-| w | 武器 |
-| q | 盾牌 |
-
-也可以不使用固定地图标记，直接用随机生成逻辑。
-
-装备对象建议结构：
-
-```js
-{
-  id: "equipment_1",
-  type: "equipment",
-  equipmentType: "iron_sword",
-  slot: "weapon",
-  x,
-  y
-}
-```
-
-### 2. 拾取方式
-
-v0.7 推荐简化处理：
-
-```text
-玩家走到装备格上，自动拾取并与当前装备比较。
-如果对应部位为空，自动装备。
-如果已有装备，弹出简化提示或在日志中提示可按 E 替换。
-```
-
-为了降低实现复杂度，也可以采用：
-
-```text
-玩家走到装备格上，如果新装备数值更高，则自动替换；如果更低或相同，则自动放入地面不处理。
-```
-
-但我更推荐做一个极简替换弹窗：
-
-```text
-发现铁剑：攻击 +3
-当前木剑：攻击 +1
-按 E 装备 / 按 Esc 放弃
-```
-
-如果做弹窗成本高，可以使用按钮或日志提示实现。
-
-### 3. 替换规则
-
-替换时：
-
-- 新装备进入对应装备槽；
-- 旧装备掉落在玩家脚下，或直接消失；
-- 本轮建议旧装备掉落在玩家脚下，方便后续扩展；
-- 日志提示：`你装备了铁剑，攻击提升到 7。`
-
----
-
-## 六、装备栏 UI / HUD
-
-HUD 必须显示：
-
-```text
-攻击：基础 + 装备 = 总攻击
-防御：盾牌防御
-武器：当前武器名
-盾牌：当前盾牌名
-```
-
-建议在左上状态区或 Console 中显示：
-
-```text
-ATK 7  DEF 2
-武器：铁剑 +3
-盾牌：铁盾 +2
-```
-
-右侧或底部快捷栏不需要放装备按钮，除非实现方便。
-
-必须让玩家知道：
-
-- 当前装备了什么；
-- 装备带来了多少加成；
-- 拾取新装备后数值发生了什么变化。
-
----
-
-## 七、装备生成规则
-
-请在 `Data/config/web_demo_balance.json` 中新增：
+### 1F：基础装备为主
 
 ```json
-"equipment": {
-  "weapons": { ... },
-  "shields": { ... },
-  "floorRules": [
-    {
-      "equipment": [1, 1],
-      "equipmentTypes": [
-        { "type": "wooden_sword", "weight": 60 },
-        { "type": "wooden_shield", "weight": 40 }
-      ]
-    },
-    {
-      "equipment": [1, 2],
-      "equipmentTypes": [
-        { "type": "wooden_sword", "weight": 25 },
-        { "type": "iron_sword", "weight": 35 },
-        { "type": "wooden_shield", "weight": 20 },
-        { "type": "iron_shield", "weight": 20 }
-      ]
-    },
-    {
-      "equipment": [2, 3],
-      "equipmentTypes": [
-        { "type": "iron_sword", "weight": 30 },
-        { "type": "flame_sword", "weight": 20 },
-        { "type": "iron_shield", "weight": 30 },
-        { "type": "guard_shield", "weight": 20 }
-      ]
-    }
-  ]
-}
+"equipment": [1, 2],
+"equipmentTypes": [
+  { "type": "short_sword", "weight": 45 },
+  { "type": "wooden_shield", "weight": 45 },
+  { "type": "spear", "weight": 8 },
+  { "type": "iron_shield", "weight": 2 }
+]
 ```
 
-生成要求：
+### 2F：中级装备为主
 
-- 装备只能生成在地板上；
-- 不生成在玩家出生点；
-- 不生成在楼梯上；
-- 不生成在楼梯相邻 1 格；
-- 不与怪物、道具、陷阱、危险地形重叠；
-- 第 1 层只生成低级装备；
-- 第 2～3 层出现更高数值装备；
-- 数量不要太多，避免装备替换过于频繁。
+```json
+"equipment": [2, 2],
+"equipmentTypes": [
+  { "type": "short_sword", "weight": 20 },
+  { "type": "wooden_shield", "weight": 20 },
+  { "type": "spear", "weight": 30 },
+  { "type": "iron_shield", "weight": 25 },
+  { "type": "flame_sword", "weight": 3 },
+  { "type": "guard_shield", "weight": 2 }
+]
+```
 
-建议新增函数：
+### 3F：高级装备开始出现
+
+```json
+"equipment": [2, 3],
+"equipmentTypes": [
+  { "type": "spear", "weight": 30 },
+  { "type": "iron_shield", "weight": 30 },
+  { "type": "flame_sword", "weight": 20 },
+  { "type": "guard_shield", "weight": 20 }
+]
+```
+
+设计意图：
+
+- 1F 主要帮助玩家理解装备；
+- 2F 开始出现换装取舍；
+- 3F 给予明显成长感；
+- 高级装备不应过早大量出现，避免前期难度失效。
+
+---
+
+## 五、装备替换与掉落稳定性检查
+
+当前 v0.7 的规则是：
+
+```text
+站在装备上按 C 装备或替换；
+旧装备掉回脚下；
+装备 / 替换推进 1 回合。
+```
+
+本轮必须检查并保证：
+
+1. 玩家脚下有装备时，按 `C` 一定能触发；
+2. 当前槽位为空时，新装备直接装备；
+3. 当前槽位已有装备时，新装备进入槽位；
+4. 旧装备掉回玩家脚下；
+5. 如果脚下已经有装备，不能产生两个装备完全重叠导致无法选择；
+6. 如果实现上无法支持脚下多装备，请用稳定方案：旧装备放到玩家相邻安全格；
+7. 如果没有相邻安全格，旧装备可以直接消失，但必须写日志说明；
+8. 装备动作推进 1 回合；
+9. 装备动作不会额外触发两次怪物行动；
+10. 装备动作后如果玩家站在毒沼上，仍按 v0.7 规则结算毒沼伤害。
+
+推荐新增或检查函数：
 
 ```js
-placeEquipment(...)
-createEquipmentDrop(...)
-pickWeightedEquipmentType(...)
-handleEquipmentPickup(...)
-equipItem(...)
-getPlayerAttack()
-getPlayerDefense()
+findEquipmentAtPlayer()
+findSafeEquipmentDropCell()
+canPlaceEquipmentAt(x, y)
 ```
 
 ---
 
-## 八、战斗兼容要求
+## 六、HUD 与日志要求
 
-必须把装备数值接入现有战斗：
+HUD 继续显示：
 
-### 玩家攻击怪物
-
-当前如果使用：
-
-```js
-monster.hp -= state.player.attack
+```text
+ATK
+DEF
+武器
+盾牌
 ```
 
-应改为：
+新增装备出现后，要能正确显示：
 
-```js
-monster.hp -= getPlayerAttack()
+```text
+武器：火焰剑 +4
+盾牌：守护盾 +3
 ```
 
-火球杖不使用武器攻击力，仍用道具自身伤害。
+日志要清楚：
 
-### 怪物攻击玩家
-
-当前如果使用：
-
-```js
-player.hp -= monster.attack
+```text
+你装备了火焰剑，攻击提升到 8。
+你装备了守护盾，防御提升到 3。
+你卸下的铁盾掉在了脚下。
 ```
 
-应改为：
+如果旧装备被丢到相邻格：
 
-```js
-damage = Math.max(1, monster.attack - getPlayerDefense())
-player.hp -= damage
+```text
+你卸下的木盾掉在了旁边。
 ```
 
-适用：
+如果旧装备无法放置而消失：
 
-- 近战怪攻击；
-- 弓手射击；
-- 骷髅枪兵攻击。
-
-不适用：
-
-- 地刺陷阱；
-- 毒沼；
-- 饥饿伤害。
+```text
+附近没有可放置的位置，旧装备消失了。
+```
 
 ---
 
-## 九、与已有系统的兼容
+## 七、战斗平衡检查
 
-必须保留并兼容：
+装备接入规则保持 v0.7：
 
+```text
+玩家普通攻击 = baseAttack + weapon.attackBonus
+玩家防御 = baseDefense + shield.defenseBonus
+怪物最终伤害 = max(1, monster.attack - playerDefense)
+```
+
+本轮要检查：
+
+- 火焰剑不会让 1F 怪物全部被过早秒杀，除非极低概率掉落；
+- 守护盾不会让玩家完全无伤，因为最低伤害仍为 1；
+- 陷阱、毒沼、饥饿仍不受盾牌减免；
+- 火球杖仍使用道具自身伤害，不吃武器攻击加成。
+
+不要做复杂数值系统，只做必要平衡微调。
+
+---
+
+## 八、与已有系统的兼容
+
+必须保留：
+
+- v0.7 装备系统；
 - v0.6 陷阱和危险地形；
 - v0.5 四种怪物；
-- 玩家睡眠状态；
 - 随机迷宫；
 - 房间怪物分配；
 - 玩家中心镜头；
@@ -453,20 +329,21 @@ player.hp -= damage
 - 敌人面板；
 - 底部快捷栏；
 - 饥饿系统；
-- 所有道具；
-- 胜负结算。
+- 回复药、食物、传送卷轴、睡眠卷轴、火球杖、换位杖；
+- 3 层胜利与死亡结算。
 
-注意兼容点：
+不要回退：
 
-- 传送陷阱和传送卷轴不能把玩家送到装备上，除非你明确处理了拾取流程；
-- 装备不能与陷阱、危险地形、道具、怪物、楼梯重叠；
-- 小地图是否显示装备可以简化处理：可以显示装备点，也可以只在主画面显示；README 要说明；
-- 敌人面板不需要显示装备信息；
-- Console 调参功能不能删除。
+- 不要删除装备快捷键 `C`；
+- 不要删除 `ATK / DEF / weapon / shield`；
+- 不要删除 `equipmentOnGround`；
+- 不要删除 `getPlayerAttack()` / `getPlayerDefense()`；
+- 不要删除 `CAMERA_FIELDS`；
+- 不要删除陷阱、毒沼、怪物机制。
 
 ---
 
-## 十、本轮明确不做
+## 九、本轮明确不做
 
 不要做：
 
@@ -477,13 +354,16 @@ player.hp -= damage
 - 不做耐久；
 - 不做武器特殊技；
 - 不做盾牌特殊抗性；
+- 不做火焰剑燃烧效果；
+- 不做守护盾特殊防护；
+- 不做背包容量；
+- 不做投掷；
 - 不做商店；
 - 不做怪物屋；
 - 不做壶；
 - 不做据点；
 - 不做 Boss；
 - 不做 Godot 工程；
-- 不新增复杂怪物系统；
 - 不重做镜头主方案；
 - 不删除 Console / Camera / View 调参功能；
 - 不引入 React、Phaser、Three.js、PixiJS 或复杂 npm 依赖；
@@ -491,7 +371,7 @@ player.hp -= damage
 
 ---
 
-## 十一、本轮允许修改文件
+## 十、本轮允许修改文件
 
 允许修改：
 
@@ -516,10 +396,8 @@ DESIGN_HUB/12_DEMO_SCOPE.md
 优先修改：
 
 ```text
-Builds/web-demo/game.js
-Builds/web-demo/index.html
-Builds/web-demo/styles.css
 Data/config/web_demo_balance.json
+Builds/web-demo/game.js
 Builds/web-demo/README.md
 Tests/web-demo-smoke.mjs
 AI_TASKS/CURRENT_TASK.md
@@ -529,69 +407,58 @@ AI_TASKS/DEV_LOG.md
 
 ---
 
-## 十二、README 更新
+## 十一、README 更新
 
 更新 `Builds/web-demo/README.md`：
 
-- 当前版本改为 `v0.7 / 装备与数值成长版`；
-- 说明本轮目标是加入最小装备系统；
-- 说明新增武器和盾牌；
-- 说明武器提升攻击、盾牌降低怪物伤害；
-- 说明装备拾取和替换规则；
-- 说明装备数值如何显示；
-- 说明装备不会影响陷阱、毒沼、饥饿伤害；
-- 说明 v0.6 的陷阱、危险地形、v0.5 怪物、镜头、Console 调参、饥饿和道具都保留；
-- 说明本轮仍未加入未鉴定、强化、合成、诅咒、商店、怪物屋、壶、据点、Boss、Godot。
+- 当前版本改为 `v0.7.1 / 装备池补全与平衡版`；
+- 说明本轮是 v0.7 的补丁版，不新增大系统；
+- 说明新增 `Flame Sword / 火焰剑` 和 `Guard Shield / 守护盾`；
+- 说明当前装备池完整列表；
+- 说明每层装备掉落节奏；
+- 说明装备替换、旧装备掉落和无法掉落时的处理；
+- 说明火焰剑和守护盾目前只有数值效果，没有特殊效果；
+- 说明 v0.6 陷阱、v0.5 怪物、玩家中心镜头、Console 调参、饥饿和道具都保留。
 
 ---
 
-## 十三、测试更新
+## 十二、测试更新
 
 更新 `Tests/web-demo-smoke.mjs`，至少检查：
 
 - Web Demo 文件存在；
-- README 包含 `v0.7 / 装备与数值成长版`；
-- README 包含 `武器`、`盾牌`、`攻击`、`防御`；
-- 配置文件版本为 `v0.7`；
-- 配置文件包含 `equipment`；
-- 配置文件包含 `weapons`；
-- 配置文件包含 `shields`；
-- 配置文件包含 `wooden_sword`、`iron_sword`、`flame_sword`；
-- 配置文件包含 `wooden_shield`、`iron_shield`、`guard_shield`；
-- 配置文件包含装备 floorRules；
-- JS 中存在装备逻辑，例如：
-  - `placeEquipment`；
+- README 包含 `v0.7.1 / 装备池补全与平衡版`；
+- README 包含 `火焰剑` 或 `Flame Sword`；
+- README 包含 `守护盾` 或 `Guard Shield`；
+- 配置文件版本为 `v0.7.1`；
+- 配置文件包含 `flame_sword`；
+- 配置文件包含 `guard_shield`；
+- `flame_sword.attackBonus` 为 4；
+- `guard_shield.defenseBonus` 为 3；
+- 3F `equipmentTypes` 中包含 `flame_sword`；
+- 3F `equipmentTypes` 中包含 `guard_shield`；
+- JS 中仍存在：
   - `createEquipmentDrop`；
-  - `pickWeightedEquipmentType`；
-  - `handleEquipmentPickup`；
-  - `equipItem`；
+  - `equipmentOnGround`；
+  - `placeEquipmentDrops`；
+  - `equipGroundItem`；
   - `getPlayerAttack`；
   - `getPlayerDefense`；
-- JS 中存在玩家装备状态，例如 `equipment`、`weapon`、`shield`；
-- JS 中仍存在：
+  - `KeyC`；
+  - `weapon-value`；
+  - `shield-value`；
   - `placeHazards`；
   - `triggerTrapAt`；
   - `applyTerrainAt`；
   - `actMonster`；
-  - `actRanged`；
-  - `actSleepMushroom`；
-  - `actReachAttack`；
   - `generateDungeon`；
-  - `placeMonstersByRoom`；
-  - `hunger`；
-  - `satiety`；
-  - `teleport`；
-  - `sleep`；
-  - `fireball`；
-  - `swap`；
-  - `minimap`；
-  - `enemyList`；
   - `CAMERA_FIELDS`；
+- 如果实现了相邻格旧装备掉落逻辑，测试中检查 `findSafeEquipmentDropCell` 或类似函数；
 - 旧 kingdom-like 核心词仍不得出现：`treeCost`、`wallCost`、`towerCost`、`landmarkCost`、`workers`、`archers`。
 
 ---
 
-## 十四、功能验收标准
+## 十三、功能验收标准
 
 完成后必须满足：
 
@@ -600,25 +467,24 @@ AI_TASKS/DEV_LOG.md
 3. `node Tests/web-demo-smoke.mjs` 通过；
 4. `node Tools/web-demo-server.mjs` 可以启动；
 5. 打开 `http://127.0.0.1:4173/Builds/web-demo/` 可以试玩；
-6. 地图中会生成武器和盾牌；
-7. 玩家可以拾取装备；
-8. 玩家可以装备或替换武器；
-9. 玩家可以装备或替换盾牌；
-10. 武器会提高玩家普通攻击伤害；
-11. 盾牌会降低怪物造成的伤害；
-12. HUD 能显示当前武器、盾牌、攻击和防御；
-13. 日志能说明装备变化和数值变化；
-14. 装备不会与怪物、道具、陷阱、危险地形、楼梯重叠；
-15. 陷阱、毒沼、饥饿伤害不受盾牌减免；
-16. v0.6 陷阱与危险地形仍可用；
-17. v0.5 怪物机制仍可用；
-18. 玩家中心镜头、Console 调参、小地图、敌人面板、快捷栏仍可用；
-19. 没有加入未鉴定、强化、合成、诅咒、商店、怪物屋、壶、据点、Boss、Godot；
-20. 没有残留 kingdom-like 核心玩法。
+6. 地图中仍会生成武器和盾牌；
+7. 3F 有机会生成火焰剑和守护盾；
+8. 火焰剑装备后 ATK 正确增加；
+9. 守护盾装备后 DEF 正确增加；
+10. 站在装备上按 C 仍能稳定装备或替换；
+11. 旧装备掉落逻辑稳定，不会导致无法选择或错误重叠；
+12. 装备不会与怪物、道具、陷阱、危险地形、楼梯重叠；
+13. 怪物伤害仍受 DEF 减免，最低伤害仍为 1；
+14. 陷阱、毒沼、饥饿伤害仍不受盾牌减免；
+15. v0.6 陷阱与危险地形仍可用；
+16. v0.5 怪物机制仍可用；
+17. 玩家中心镜头、Console 调参、小地图、敌人面板、快捷栏仍可用；
+18. 没有加入未鉴定、强化、合成、诅咒、耐久、商店、怪物屋、壶、据点、Boss、Godot；
+19. 没有残留 kingdom-like 核心玩法。
 
 ---
 
-## 十五、完成后更新记录
+## 十四、完成后更新记录
 
 完成后必须更新：
 
@@ -630,20 +496,20 @@ AI_TASKS/DEV_LOG.md
 记录本轮为：
 
 ```text
-Web Demo v0.7 / 装备与数值成长版
+Web Demo v0.7.1 / 装备池补全与平衡版
 ```
 
 下一轮建议暂时写成：
 
 ```text
-Web Demo v0.8 / 未鉴定与道具风险版
+Web Demo v0.8 / 背包与投掷版
 ```
 
-但不要直接开始 v0.8，等待制作人试玩 v0.7 后确认。
+但不要直接开始 v0.8，等待制作人试玩 v0.7.1 后确认。
 
 ---
 
-## 十六、完成后输出格式
+## 十五、完成后输出格式
 
 ```text
 修改文件列表：
