@@ -1,7 +1,7 @@
 (() => {
   const CONFIG_URL = "../../Data/config/web_demo_balance.json";
   const DEFAULT_CONFIG = {
-    version: "v0.4",
+    version: "v0.4.1",
     dungeon: {
       maxFloors: 3,
       width: 15,
@@ -128,6 +128,11 @@
       lowThreshold: 25,
       starvationDamageInterval: 5,
       starvationDamage: 1
+    },
+    camera: {
+      cameraMode: "traditional-tilt",
+      yScale: 0.72,
+      perspectiveOffset: 2
     }
   };
 
@@ -211,9 +216,13 @@
     width: 0,
     height: 0,
     dpr: 1,
-    tileW: 72,
-    tileH: 38,
-    tileDepth: 26,
+    cameraMode: "traditional-tilt",
+    tileW: 60,
+    tileH: 60,
+    tileDepth: 20,
+    rowStep: 43,
+    yScale: 0.72,
+    perspectiveOffset: 2,
     originX: 0,
     originY: 0
   };
@@ -987,6 +996,10 @@
     return config.hunger || DEFAULT_CONFIG.hunger;
   }
 
+  function getCameraConfig() {
+    return config.camera || DEFAULT_CONFIG.camera;
+  }
+
   function applyHunger() {
     const hunger = getHungerConfig();
     if (!hunger || !hunger.enabled) {
@@ -1342,26 +1355,24 @@
     const playBottom = Math.max(playTop + 220, rect.height - bottomGap);
     const availableW = Math.max(280, playRight - playLeft);
     const availableH = Math.max(220, playBottom - playTop);
-    const isoColumns = Math.max(1, mapWidth + mapHeight);
-    const widthLimitedTile = (availableW * 2) / isoColumns;
-    const heightLimitedTile = ((availableH - 36) * 2) / (isoColumns * 0.52);
-    view.tileW = Math.floor(clamp(Math.min(widthLimitedTile, heightLimitedTile), compact ? 42 : 58, compact ? 64 : 86));
-    view.tileH = Math.floor(view.tileW * 0.52);
-    view.tileDepth = Math.floor(view.tileH * 0.72);
+    const camera = getCameraConfig();
+    view.cameraMode = camera.cameraMode || "traditional-tilt";
+    view.yScale = clamp(Number(camera.yScale) || 0.72, 0.7, 0.78);
+    view.perspectiveOffset = clamp(Number(camera.perspectiveOffset) || 0, 0, 3);
+    view.tileW = Math.floor(clamp(availableW / Math.max(6, mapWidth), compact ? 44 : 52, compact ? 56 : 64));
+    view.tileH = view.tileW;
+    view.rowStep = Math.floor(view.tileH * view.yScale);
+    view.tileDepth = Math.floor(view.tileH * 0.34);
 
-    const minIsoX = -(mapHeight - 1) * view.tileW / 2;
-    const maxIsoX = (mapWidth - 1) * view.tileW / 2;
-    const minIsoY = -view.tileDepth - view.tileH / 2;
-    const maxIsoY = (mapWidth + mapHeight - 2) * view.tileH / 2 + view.tileH / 2;
-    const isoWidth = maxIsoX - minIsoX;
-    const isoHeight = maxIsoY - minIsoY;
-    view.originX = Math.floor(playLeft + (availableW - isoWidth) / 2 - minIsoX);
-    view.originY = Math.floor(playTop + (availableH - isoHeight) / 2 - minIsoY);
+    const projectedWidth = mapWidth * view.tileW + Math.max(0, mapHeight - 1) * view.perspectiveOffset;
+    const projectedHeight = mapHeight * view.rowStep + view.tileDepth + view.tileH * 0.95;
+    view.originX = Math.floor(playLeft + (availableW - projectedWidth) / 2);
+    view.originY = Math.floor(playTop + (availableH - projectedHeight) / 2);
 
     if (state && state.player) {
-      const playerScreen = tileToScreen(state.player.x, state.player.y);
+      const playerScreen = tileCenterScreen(state.player.x, state.player.y);
       const targetX = playLeft + availableW * 0.5;
-      const targetY = playTop + availableH * 0.62;
+      const targetY = playTop + availableH * 0.56;
       view.originX += clamp(targetX - playerScreen.x, -availableW * 0.18, availableW * 0.18);
       view.originY += clamp(targetY - playerScreen.y, -availableH * 0.2, availableH * 0.2);
     }
@@ -1370,8 +1381,16 @@
 
   function tileToScreen(x, y) {
     return {
-      x: view.originX + (x - y) * view.tileW / 2,
-      y: view.originY + (x + y) * view.tileH / 2
+      x: view.originX + x * view.tileW + y * view.perspectiveOffset,
+      y: view.originY + y * view.rowStep
+    };
+  }
+
+  function tileCenterScreen(x, y) {
+    const p = tileToScreen(x, y);
+    return {
+      x: p.x + view.tileW / 2,
+      y: p.y + view.rowStep * 0.78
     };
   }
 
@@ -1379,11 +1398,10 @@
     const rect = canvas.getBoundingClientRect();
     const sx = clientX - rect.left - view.originX;
     const sy = clientY - rect.top - view.originY;
-    const isoX = sx / (view.tileW / 2);
-    const isoY = sy / (view.tileH / 2);
+    const y = Math.round(sy / view.rowStep);
     return {
-      x: Math.round((isoY + isoX) / 2),
-      y: Math.round((isoY - isoX) / 2)
+      x: Math.round((sx - y * view.perspectiveOffset) / view.tileW),
+      y
     };
   }
 
@@ -1445,45 +1463,51 @@
       }
     }
     cells
-      .sort((a, b) => (a.x + a.y) - (b.x + b.y) || a.y - b.y)
+      .sort((a, b) => a.y - b.y || a.x - b.x)
       .forEach((cell) => drawTile(cell.x, cell.y, cell.tile));
   }
 
   function drawTile(x, y, tile) {
     const p = tileToScreen(x, y);
     if (tile === "wall") {
-      drawWallBlock(p);
+      drawWallBlock(p, x, y);
       return;
     }
 
-    drawIsoDiamond(p, "#526247", "rgba(246, 240, 223, 0.18)");
+    drawTiltTile(p, "#566449", "rgba(246, 240, 223, 0.18)");
     ctx.save();
-    clipIsoDiamond(p, 6);
+    clipTiltTile(p, 4);
     ctx.strokeStyle = "rgba(28, 35, 27, 0.28)";
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(p.x - view.tileW * 0.2, p.y + view.tileH * 0.08);
-    ctx.lineTo(p.x + view.tileW * 0.12, p.y - view.tileH * 0.08);
-    ctx.moveTo(p.x + view.tileW * 0.18, p.y + view.tileH * 0.12);
-    ctx.lineTo(p.x + view.tileW * 0.32, p.y + view.tileH * 0.02);
+    ctx.moveTo(p.x + view.tileW * 0.14, p.y + view.rowStep * 0.38);
+    ctx.lineTo(p.x + view.tileW * 0.62, p.y + view.rowStep * 0.24);
+    ctx.moveTo(p.x + view.tileW * 0.26, p.y + view.rowStep * 0.68);
+    ctx.lineTo(p.x + view.tileW * 0.76, p.y + view.rowStep * 0.54);
     ctx.stroke();
     ctx.restore();
   }
 
-  function drawWallBlock(p) {
-    const top = diamondPoints({ x: p.x, y: p.y - view.tileDepth }, 0);
-    const base = diamondPoints(p, 0);
-    drawPolygon([top.left, top.bottom, base.bottom, base.left], "#28322e", null);
-    drawPolygon([top.right, top.bottom, base.bottom, base.right], "#1d2628", null);
-    drawPolygon([top.top, top.right, top.bottom, top.left], "#475248", "rgba(246, 240, 223, 0.16)");
+  function drawWallBlock(p, x, y) {
+    const top = tiltTilePoints({ x: p.x, y: p.y - view.tileDepth }, 0);
+    const front = tiltTilePoints(p, 0);
+    drawPolygon([top.bottomLeft, top.bottomRight, front.bottomRight, front.bottomLeft], "#26302c", null);
+    drawPolygon([top.topLeft, top.bottomLeft, front.bottomLeft, front.topLeft], "#334039", null);
+    drawPolygon([top.topLeft, top.topRight, top.bottomRight, top.bottomLeft], "#4c584d", "rgba(246, 240, 223, 0.15)");
     ctx.strokeStyle = "rgba(0, 0, 0, 0.26)";
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(top.left.x, top.left.y);
-    ctx.lineTo(base.left.x, base.left.y);
-    ctx.moveTo(top.right.x, top.right.y);
-    ctx.lineTo(base.right.x, base.right.y);
+    ctx.moveTo(top.bottomLeft.x, top.bottomLeft.y);
+    ctx.lineTo(front.bottomLeft.x, front.bottomLeft.y);
+    ctx.moveTo(top.bottomRight.x, top.bottomRight.y);
+    ctx.lineTo(front.bottomRight.x, front.bottomRight.y);
     ctx.stroke();
+
+    const southWall = getTile(x, y + 1) !== "wall";
+    if (southWall) {
+      ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
+      ctx.fillRect(p.x + 4, p.y + view.rowStep * 0.82, view.tileW - 8, 3);
+    }
   }
 
   function drawMoveRange() {
@@ -1523,7 +1547,7 @@
 
   function drawRangeOverlay(x, y, fill, stroke) {
     const p = tileToScreen(x, y);
-    drawIsoDiamond(p, fill, stroke, 5);
+    drawTiltTile(p, fill, stroke, 5);
   }
 
   function drawEntities() {
@@ -1534,26 +1558,26 @@
       { kind: "player", x: state.player.x, y: state.player.y, draw: drawPlayer, priority: 3 }
     ];
     entities
-      .sort((a, b) => (a.x + a.y) - (b.x + b.y) || a.priority - b.priority)
+      .sort((a, b) => a.y - b.y || a.x - b.x || a.priority - b.priority)
       .forEach((entity) => entity.draw());
   }
 
   function drawStairs(x, y) {
     const p = tileToScreen(x, y);
-    drawIsoDiamond(p, "rgba(240, 200, 90, 0.2)", "rgba(240, 200, 90, 0.78)", 4);
+    drawTiltTile(p, "rgba(240, 200, 90, 0.18)", "rgba(240, 200, 90, 0.72)", 4);
     const size = view.tileW;
     ctx.strokeStyle = "#f0c85a";
     ctx.lineWidth = 3;
     for (let index = 0; index < 4; index += 1) {
-      const yLine = p.y - view.tileH * 0.18 + index * view.tileH * 0.11;
+      const yLine = p.y + view.rowStep * 0.25 + index * view.rowStep * 0.12;
       ctx.beginPath();
-      ctx.moveTo(p.x - size * 0.18 + index * 2, yLine);
-      ctx.lineTo(p.x + size * 0.18 - index * 2, yLine);
+      ctx.moveTo(p.x + size * 0.28 + index * 1.4, yLine);
+      ctx.lineTo(p.x + size * 0.72 - index * 1.4, yLine);
       ctx.stroke();
     }
     ctx.fillStyle = "rgba(240, 200, 90, 0.18)";
     ctx.beginPath();
-    ctx.ellipse(p.x, p.y + view.tileH * 0.1, size * 0.24, view.tileH * 0.24, 0, 0, Math.PI * 2);
+    ctx.ellipse(p.x + size * 0.5, p.y + view.rowStep * 0.72, size * 0.2, view.rowStep * 0.18, 0, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -1561,87 +1585,92 @@
     const meta = ITEM_META[item.type];
     const p = tileToScreen(item.x, item.y);
     const size = view.tileW;
-    const cy = p.y - view.tileH * 0.18;
-    drawIsoDiamond(p, `${meta.color}34`, `${meta.color}99`, 11);
+    const cx = p.x + size * 0.5;
+    const cy = p.y + view.rowStep * 0.45;
+    drawTiltTile(p, `${meta.color}24`, `${meta.color}7a`, 10);
     ctx.fillStyle = `${meta.color}33`;
     ctx.beginPath();
-    ctx.ellipse(p.x, p.y + view.tileH * 0.04, size * 0.16, view.tileH * 0.16, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx, p.y + view.rowStep * 0.78, size * 0.14, view.rowStep * 0.14, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = meta.color;
     ctx.beginPath();
-    ctx.roundRect(p.x - size * 0.13, cy - size * 0.13, size * 0.26, size * 0.26, 5);
+    ctx.roundRect(cx - size * 0.13, cy - size * 0.13, size * 0.26, size * 0.26, 5);
     ctx.fill();
     ctx.strokeStyle = "rgba(246, 240, 223, 0.8)";
     ctx.lineWidth = 2;
-    ctx.strokeRect(p.x - size * 0.13, cy - size * 0.13, size * 0.26, size * 0.26);
+    ctx.strokeRect(cx - size * 0.13, cy - size * 0.13, size * 0.26, size * 0.26);
     ctx.fillStyle = "#0e1110";
     ctx.font = `800 ${Math.max(13, size * 0.22)}px sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(meta.icon, p.x, cy + 1);
+    ctx.fillText(meta.icon, cx, cy + 1);
   }
 
   function drawMonster(monster) {
     const p = tileToScreen(monster.x, monster.y);
     const size = view.tileW;
-    const bodyY = p.y - view.tileH * 0.34;
+    const cx = p.x + size * 0.5;
+    const footY = p.y + view.rowStep * 0.78;
+    const bodyY = footY - size * 0.3;
     ctx.fillStyle = "rgba(0, 0, 0, 0.34)";
     ctx.beginPath();
-    ctx.ellipse(p.x, p.y + view.tileH * 0.18, size * 0.24, view.tileH * 0.2, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx, footY, size * 0.2, view.rowStep * 0.16, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = monster.hitFlash > 0 ? "#ffffff" : monster.sleepTurns > 0 ? "#605772" : "#9b5ad7";
     ctx.beginPath();
-    ctx.ellipse(p.x, bodyY, size * 0.24, size * 0.2, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx, bodyY, size * 0.22, size * 0.18, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = "#21132d";
     ctx.beginPath();
-    ctx.arc(p.x - size * 0.08, bodyY - size * 0.03, size * 0.03, 0, Math.PI * 2);
-    ctx.arc(p.x + size * 0.08, bodyY - size * 0.03, size * 0.03, 0, Math.PI * 2);
+    ctx.arc(cx - size * 0.08, bodyY - size * 0.03, size * 0.03, 0, Math.PI * 2);
+    ctx.arc(cx + size * 0.08, bodyY - size * 0.03, size * 0.03, 0, Math.PI * 2);
     ctx.fill();
     if (monster.sleepTurns > 0) {
       ctx.fillStyle = "#d8c7ff";
       ctx.font = `800 ${Math.max(13, size * 0.24)}px sans-serif`;
       ctx.textAlign = "center";
-      ctx.fillText("Z", p.x, bodyY - size * 0.28);
+      ctx.fillText("Z", cx, bodyY - size * 0.28);
     }
-    drawBar(p.x, bodyY - size * 0.26, size * 0.5, monster.hp, monster.maxHp, "#df6657");
+    drawBar(cx, bodyY - size * 0.26, size * 0.5, monster.hp, monster.maxHp, "#df6657");
   }
 
   function drawPlayer() {
     const p = tileToScreen(state.player.x, state.player.y);
     const size = view.tileW;
-    const bodyY = p.y - view.tileH * 0.38;
+    const cx = p.x + size * 0.5;
+    const footY = p.y + view.rowStep * 0.8;
+    const bodyY = footY - size * 0.34;
     ctx.fillStyle = "rgba(0, 0, 0, 0.34)";
     ctx.beginPath();
-    ctx.ellipse(p.x, p.y + view.tileH * 0.2, size * 0.25, view.tileH * 0.2, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx, footY, size * 0.22, view.rowStep * 0.17, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = state.player.hitFlash > 0 ? "#ffffff" : "#4f86c8";
     ctx.beginPath();
-    ctx.roundRect(p.x - size * 0.15, bodyY - size * 0.04, size * 0.3, size * 0.28, 7);
+    ctx.roundRect(cx - size * 0.15, bodyY - size * 0.04, size * 0.3, size * 0.28, 7);
     ctx.fill();
     ctx.fillStyle = "#e5bc82";
     ctx.beginPath();
-    ctx.arc(p.x, bodyY - size * 0.12, size * 0.12, 0, Math.PI * 2);
+    ctx.arc(cx, bodyY - size * 0.12, size * 0.12, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = "#f6f0df";
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(p.x - size * 0.18, bodyY + size * 0.2);
-    ctx.lineTo(p.x + size * 0.18, bodyY + size * 0.2);
+    ctx.moveTo(cx - size * 0.18, bodyY + size * 0.2);
+    ctx.lineTo(cx + size * 0.18, bodyY + size * 0.2);
     ctx.stroke();
-    drawFacingCue(p.x, bodyY, size);
-    drawBar(p.x, bodyY - size * 0.28, size * 0.58, state.player.hp, state.player.maxHp, "#75c884");
+    drawFacingCue(cx, bodyY, size);
+    drawBar(cx, bodyY - size * 0.28, size * 0.58, state.player.hp, state.player.maxHp, "#75c884");
   }
 
   function drawFacingCue(cx, cy, size) {
     const dir = DIRS[state.player.facing] || DIRS.down;
-    const target = tileToScreen(state.player.x + dir.x * 0.62, state.player.y + dir.y * 0.62);
+    const target = tileCenterScreen(state.player.x + dir.x * 0.62, state.player.y + dir.y * 0.62);
     ctx.strokeStyle = "#f0c85a";
     ctx.lineWidth = 3;
     ctx.lineCap = "round";
     ctx.beginPath();
     ctx.moveTo(cx, cy + size * 0.08);
-    ctx.lineTo(target.x, target.y - view.tileH * 0.3);
+    ctx.lineTo(target.x, target.y - size * 0.28);
     ctx.stroke();
   }
 
@@ -1653,29 +1682,32 @@
     ctx.fillRect(cx - width / 2, y, width * ratio, 5);
   }
 
-  function diamondPoints(center, inset = 0) {
-    const halfW = Math.max(4, view.tileW / 2 - inset);
-    const halfH = Math.max(3, view.tileH / 2 - inset * 0.45);
+  function tiltTilePoints(origin, inset = 0) {
+    const x = origin.x + inset;
+    const y = origin.y + inset;
+    const width = Math.max(8, view.tileW - inset * 2);
+    const topInset = Math.max(0, width * 0.05);
+    const height = Math.max(10, view.rowStep + view.tileDepth * 0.18 - inset * 0.2);
     return {
-      top: { x: center.x, y: center.y - halfH },
-      right: { x: center.x + halfW, y: center.y },
-      bottom: { x: center.x, y: center.y + halfH },
-      left: { x: center.x - halfW, y: center.y }
+      topLeft: { x: x + topInset, y },
+      topRight: { x: x + width - topInset, y },
+      bottomRight: { x: x + width, y: y + height },
+      bottomLeft: { x, y: y + height }
     };
   }
 
-  function drawIsoDiamond(center, fill, stroke, inset = 0) {
-    const points = diamondPoints(center, inset);
-    drawPolygon([points.top, points.right, points.bottom, points.left], fill, stroke);
+  function drawTiltTile(origin, fill, stroke, inset = 0) {
+    const points = tiltTilePoints(origin, inset);
+    drawPolygon([points.topLeft, points.topRight, points.bottomRight, points.bottomLeft], fill, stroke);
   }
 
-  function clipIsoDiamond(center, inset = 0) {
-    const points = diamondPoints(center, inset);
+  function clipTiltTile(origin, inset = 0) {
+    const points = tiltTilePoints(origin, inset);
     ctx.beginPath();
-    ctx.moveTo(points.top.x, points.top.y);
-    ctx.lineTo(points.right.x, points.right.y);
-    ctx.lineTo(points.bottom.x, points.bottom.y);
-    ctx.lineTo(points.left.x, points.left.y);
+    ctx.moveTo(points.topLeft.x, points.topLeft.y);
+    ctx.lineTo(points.topRight.x, points.topRight.y);
+    ctx.lineTo(points.bottomRight.x, points.bottomRight.y);
+    ctx.lineTo(points.bottomLeft.x, points.bottomLeft.y);
     ctx.closePath();
     ctx.clip();
   }

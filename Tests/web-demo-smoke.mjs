@@ -40,9 +40,10 @@ assert.match(css, /enemy-panel/, "CSS should style the enemy panel");
 assert.match(css, /quick-actions/, "CSS should style the quickbar");
 
 const webReadme = readFileSync(paths.webReadme, "utf8");
-assert.match(webReadme, /shiren-like Web Demo/, "web demo README should be named");
-assert.match(webReadme, /v0\.4 \/ 镜头与画面表现调整版/, "web demo README should describe v0.4 status");
-assert.match(webReadme, /2\.5D|斜俯视|等距/, "web demo README should describe the 2.5D view");
+assert.match(webReadme, /v0\.4\.1 \/ 传统轻斜俯视镜头修正版/, "web demo README should describe v0.4.1 status");
+assert.match(webReadme, /B 方案|75°|传统轻斜俯视/, "web demo README should describe the chosen camera option");
+assert.match(webReadme, /操作方向|上下左右/, "web demo README should describe directional controls");
+assert.match(webReadme, /矩形格/, "web demo README should describe rectangular tiles");
 assert.match(webReadme, /小地图/, "web demo README should describe the minimap");
 assert.match(webReadme, /敌人面板/, "web demo README should describe the enemy panel");
 assert.match(webReadme, /快捷栏/, "web demo README should describe the quickbar");
@@ -53,7 +54,7 @@ assert.match(webReadme, /饥饿/, "web demo README should describe hunger");
 const js = readFileSync(paths.js, "utf8");
 assert.match(js, /tileToScreen/, "JS should include camera projection logic");
 assert.match(js, /screenToTile/, "JS should include projected pointer conversion");
-assert.match(js, /drawIsoDiamond|isometric|screenX|screenY/i, "JS should include isometric drawing logic");
+assert.match(js, /traditional|tilt|yScale|cameraMode/, "JS should include traditional tilt camera logic");
 assert.match(js, /drawMoveRange/, "JS should draw player move range");
 assert.match(js, /drawThreatRange/, "JS should draw monster threat range");
 assert.match(js, /rangeOverlay|drawRangeOverlay|threat/i, "JS should include range overlay logic");
@@ -75,9 +76,11 @@ assert.match(js, /sleep/i, "JS should include sleep logic");
 assert.match(js, /fireball/i, "JS should include fireball logic");
 assert.match(js, /swap/i, "JS should include swap logic");
 assert.match(js, /finishGame/, "JS should include result handling");
+assert.equal(js.includes("(x - y) * view.tileW / 2"), false, "JS should not keep the old isometric x projection as the active camera");
+assert.equal(js.includes("(x + y) * view.tileH / 2"), false, "JS should not keep the old isometric y projection as the active camera");
 
 const config = JSON.parse(readFileSync(paths.config, "utf8"));
-assert.equal(config.version, "v0.4", "config should be v0.4");
+assert.equal(config.version, "v0.4.1", "config should be v0.4.1");
 assert.equal(config.dungeon.maxFloors, 3, "config should include 3-floor goal");
 assert.ok(config.dungeon.generation, "config should include random generation parameters");
 assert.ok(config.dungeon.generation.enabled, "random generation should be enabled");
@@ -87,6 +90,8 @@ assert.ok(config.hunger, "config should include hunger parameters");
 assert.equal(config.hunger.enabled, true, "hunger should be enabled");
 assert.equal(config.hunger.satietyLossInterval, 5, "hunger should consume satiety on interval");
 assert.equal(config.hunger.starvationDamage, 1, "starvation damage should be lightweight");
+assert.equal(config.camera.cameraMode, "traditional-tilt", "camera mode should be traditional tilt");
+assert.equal(config.camera.yScale, 0.72, "camera should use the chosen yScale");
 
 for (const type of ["potion", "food", "teleport", "sleep", "fireball", "swap"]) {
   assert.ok(config.items[type], `config should include ${type}`);
@@ -105,4 +110,4 @@ for (const term of forbiddenCoreTerms) {
   assert.equal(js.includes(term), false, `JS should not keep old core term: ${term}`);
 }
 
-console.log("v0.4 shiren-like camera, UI, random dungeon, and hunger smoke test passed");
+console.log("v0.4.1 shiren-like traditional tilt camera smoke test passed");

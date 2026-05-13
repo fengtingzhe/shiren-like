@@ -1,5 +1,5 @@
 {
-  "version": "v0.4",
+  "version": "v0.4.1",
   "dungeon": {
     "maxFloors": 3,
     "width": 15,
@@ -141,5 +141,10 @@
     "lowThreshold": 25,
     "starvationDamageInterval": 5,
     "starvationDamage": 1
+  },
+  "camera": {
+    "cameraMode": "traditional-tilt",
+    "yScale": 0.72,
+    "perspectiveOffset": 2
   }
 }
